@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aloha Water Treatment - OT Control System</title>
+    <script src="/static/jquery.min.js"></script>
+    <style>
+        :root {
+            --primary-blue: #0077be;
+            --secondary-blue: #005a8b;
+            --accent-teal: #20b2aa;
+            --tropical-green: #32cd32;
+            --coral: #ff7f50;
+            --warning-orange: #ff6b35;
+            --danger-red: #dc3545;
+            --success-green: #28a745;
+            --background-dark: #1a1a1a;
+            --surface-dark: #2d2d2d;
+            --surface-light: #3d3d3d;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --border-color: #4a4a4a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-teal) 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--tropical-green);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            color: white;
+        }
+
+        .company-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--tropical-green);
+            animation: pulse 2s infinite;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 1rem;
+            height: calc(100vh - 120px);
+        }
+
+        .tank-monitor {
+            grid-row: span 2;
+            grid-column: 1;
+        }
+
+        .process-overview {
+            grid-column: 2 / -1;
+            grid-row: 1;
+            background: var(--surface-dark);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .controls-row {
+            grid-column: 2 / -1;
+            grid-row: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .card {
+            background: var(--surface-dark);
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: fit-content;
+        }
+
+        .card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Process Flow Visualization */
+        .process-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .process-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .stage-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--surface-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            margin-bottom: 0.5rem;
+            border: 2px solid var(--border-color);
+        }
+
+        .stage-active {
+            background: var(--primary-blue);
+            border-color: var(--primary-blue);
+            animation: pulse 2s infinite;
+        }
+
+        .stage-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .stage-value {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 0.3rem;
+        }
+
+        /* Water graphics under process stages */
+        .stage-water {
+            width: 60px;
+            height: 20px;
+            border-radius: 10px;
+            margin-top: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dirty-water {
+            background: linear-gradient(45deg, #8B4513, #CD853F, #D2691E);
+            border: 1px solid #654321;
+            animation: flow 3s ease-in-out infinite;
+        }
+
+        .clean-water {
+            background: linear-gradient(45deg, var(--accent-teal), var(--primary-blue), var(--tropical-green));
+            border: 1px solid var(--primary-blue);
+            animation: flow 3s ease-in-out infinite;
+        }
+
+        .treatment-tank-mini {
+            width: 40px;
+            height: 30px;
+            border: 2px solid var(--primary-blue);
+            border-radius: 0 0 8px 8px;
+            background: var(--surface-light);
+            position: relative;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .treatment-water-level {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, var(--accent-teal), var(--tropical-green));
+            transition: height 0.8s ease;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .flow-arrow {
+            width: 0;
+            height: 0;
+            border-left: 15px solid var(--border-color);
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            margin: 0 1rem;
+        }
+
+        /* Tank Display */
+        .tank-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .tank-visual {
+            width: 80px;
+            height: 120px;
+            border: 3px solid var(--primary-blue);
+            border-radius: 0 0 12px 12px;
+            position: relative;
+            overflow: hidden;
+            background: var(--surface-light);
+        }
+
+        .water-level {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to top, var(--accent-teal), var(--tropical-green));
+            transition: height 0.8s ease;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .tank-labels {
+            margin-left: 1rem;
+        }
+
+        .tank-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-blue);
+        }
+
+        .tank-unit {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Controls */
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--surface-light);
+            transition: .4s;
+            border-radius: 34px;
+            border: 2px solid var(--border-color);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .emergency-stop {
+            background: var(--danger-red);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            width: 100%;
+        }
+
+        .emergency-stop:hover {
+            background: #aa0000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(204, 0, 0, 0.3);
+        }
+
+        .emergency-stop:active {
+            transform: translateY(0);
+        }
+
+        /* Status Indicators */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .status-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .status-on {
+            background: var(--tropical-green);
+            box-shadow: 0 0 8px rgba(50, 205, 50, 0.5);
+        }
+
+        .status-off {
+            background: var(--text-secondary);
+        }
+
+        .status-alarm {
+            background: var(--danger-red);
+            box-shadow: 0 0 8px rgba(204, 0, 0, 0.5);
+            animation: pulse 1s infinite;
+        }
+
+        /* Flow Controls */
+        .flow-control {
+            margin-bottom: 1.5rem;
+        }
+
+        .flow-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--surface-light);
+            outline: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .flow-slider:hover {
+            opacity: 0.8;
+        }
+
+        .flow-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .flow-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .flow-value {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .flow-current {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        .flow-unit {
+            color: var(--text-secondary);
+        }
+
+        /* Low Level Alarm */
+        .low-level-alarm {
+            background: rgba(255, 127, 80, 0.1);
+            border: 1px solid var(--coral);
+            border-radius: 8px;
+            padding: 1rem;
+            display: none;
+        }
+
+        .low-level-alarm.alarm-active {
+            display: block;
+            animation: pulse 2s infinite;
+        }
+
+        .low-level-alarm .alarm-text {
+            color: var(--coral);
+            font-weight: 600;
+            text-align: center;
+        }
+        .alarm-panel {
+            background: rgba(204, 0, 0, 0.1);
+            border: 1px solid var(--danger-red);
+            border-radius: 8px;
+            padding: 1rem;
+            display: none;
+        }
+
+        .alarm-active {
+            display: block;
+            animation: pulse 2s infinite;
+        }
+
+        .alarm-text {
+            color: var(--danger-red);
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Alert Log */
+        .alert-log {
+            background: var(--surface-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .alert-header {
+            background: var(--surface-dark);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .alert-list {
+            padding: 0.5rem;
+        }
+
+        .alert-item {
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid var(--warning-orange);
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .alert-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .alert-timestamp {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        .alert-message {
+            color: var(--warning-orange);
+            font-weight: 500;
+            margin-top: 0.2rem;
+        }
+
+        .alert-resolved {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: var(--success-green);
+        }
+
+        .alert-resolved .alert-message {
+            color: var(--success-green);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .process-flow {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes flow {
+            0% {
+                box-shadow: inset 0 0 0 rgba(255, 255, 255, 0.3);
+            }
+            50% {
+                box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.5);
+            }
+            100% {
+                box-shadow: inset 0 0 0 rgba(255, 255, 255, 0.3);
+            }
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .text-success { color: var(--success-green); }
+        .text-warning { color: var(--warning-orange); }
+        .text-danger { color: var(--danger-red); }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mt-2 { margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🌴</div>
+                <div>
+                    <div class="company-name">Aloha Water Treatment</div>
+                    <div style="font-size: 0.9rem; opacity: 0.8;">Treatment Plant Control</div>
+                </div>
+            </div>
+            <div class="system-status">
+                <div class="status-dot"></div>
+                <span>System Online</span>
+                <span style="margin-left: 2rem; opacity: 0.7;">Plant ID: AW-001</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="card tank-monitor">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Tank Level Monitor</div>
+                    <div class="card-subtitle">Treatment tank capacity</div>
+                </div>
+            </div>
+            
+            <div class="tank-container">
+                <div class="tank-visual">
+                    <div class="water-level" id="waterLevel"></div>
+                </div>
+                <div class="tank-labels">
+                    <div class="tank-value" id="tankVolumeDisplay">0</div>
+                    <div class="tank-unit">Liters</div>
+                    <div class="mt-2">
+                        <div class="tank-value" id="levelPercentage">0</div>
+                        <div class="tank-unit">Percent</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alarm-panel" id="overflowAlarm">
+                <div class="alarm-text">⚠ HIGH LEVEL ALARM</div>
+            </div>
+            
+            <div class="low-level-alarm" id="lowLevelAlarm">
+                <div class="alarm-text">⚠ LOW LEVEL - NO OUTFLOW</div>
+            </div>
+            
+            <div class="alarm-panel" id="operatorErrorAlarm">
+                <div class="alarm-text">⚠ OPERATOR ERROR - EQUIPMENT DAMAGED</div>
+            </div>
+            
+            <div class="alert-log" id="alertLog">
+                <div class="alert-header">System Alerts</div>
+                <div class="alert-list" id="alertList">
+                </div>
+            </div>
+        </div>
+
+        <div class="process-overview">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Treatment Process Overview</div>
+                    <div class="card-subtitle">Real-time monitoring of water treatment stages</div>
+                </div>
+            </div>
+            
+            <div class="process-flow">
+                <div class="process-stage">
+                    <div class="stage-icon stage-active" id="intakeStage">IN</div>
+                    <div class="stage-title">Raw Water Intake</div>
+                    <div class="stage-value" id="intakeValue">0 L/s</div>
+                    <div class="stage-water dirty-water" id="intakeWater"></div>
+                </div>
+                
+                <div class="flow-arrow"></div>
+                
+                <div class="process-stage">
+                    <div class="stage-icon" id="treatmentStage">TR</div>
+                    <div class="stage-title">Treatment Tank</div>
+                    <div class="stage-value" id="treatmentValue">0 L</div>
+                    <div class="treatment-tank-mini">
+                        <div class="treatment-water-level" id="treatmentWaterLevel"></div>
+                    </div>
+                </div>
+                
+                <div class="flow-arrow"></div>
+                
+                <div class="process-stage">
+                    <div class="stage-icon" id="outputStage">OUT</div>
+                    <div class="stage-title">Clean Water Output</div>
+                    <div class="stage-value" id="outputValue">0 L/s</div>
+                    <div class="stage-water clean-water" id="outputWater"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">System Controls</div>
+                        <div class="card-subtitle">Main operations</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="emergency-stop" id="emergencyStop">Emergency Stop</button>
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Main Power</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mainSwitch">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Operation Mode</label>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+                        <span>AUTO</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="modeSwitch">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>MANUAL</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Flow Controls</div>
+                        <div class="card-subtitle">Manual flow adjustment</div>
+                    </div>
+                </div>
+                
+                <div class="flow-control">
+                    <label class="control-label">Inlet Flow Rate</label>
+                    <input type="range" min="0" max="1000" value="0" class="flow-slider" id="inflowSlider">
+                    <div class="flow-value">
+                        <span class="flow-current" id="inflowDisplay">0</span>
+                        <span class="flow-unit">L/s</span>
+                        <span class="flow-unit" id="inflowStatus" style="margin-left: 1rem; font-size: 0.7rem;"></span>
+                    </div>
+                </div>
+                
+                <div class="flow-control">
+                    <label class="control-label">Outlet Flow Rate</label>
+                    <input type="range" min="0" max="1000" value="0" class="flow-slider" id="outflowSlider">
+                    <div class="flow-value">
+                        <span class="flow-current" id="outflowDisplay">0</span>
+                        <span class="flow-unit">L/s</span>
+                        <span class="flow-unit" id="outflowStatus" style="margin-left: 1rem; font-size: 0.7rem;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">System Status</div>
+                        <div class="card-subtitle">Equipment & operations</div>
+                    </div>
+                </div>
+                
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Pump</span>
+                        <span class="status-indicator" id="pumpStatus"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">E-Stop</span>
+                        <span class="status-indicator" id="emergencyStatus"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Inlet</span>
+                        <span class="status-indicator" id="inletValveStatus"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Outlet</span>
+                        <span class="status-indicator" id="outletValveStatus"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Mode</span>
+                        <span id="modeDisplay" style="font-size: 0.8rem;">Auto</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Alarms</span>
+                        <span id="alarmCount" style="font-size: 0.8rem;">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let alertLog = [];
+        let alertIdCounter = 0;
+        
+        $(document).ready(function() {
+            updateAlertDisplay();
+            updateInterface();
+            setInterval(updateInterface, 1000);
+        });
+
+        function addAlert(type, message, reason) {
+            const timestamp = new Date().toLocaleTimeString();
+            const alert = {
+                id: alertIdCounter++,
+                type: type,
+                message: message,
+                reason: reason,
+                timestamp: timestamp,
+                resolved: false
+            };
+            
+            alertLog.unshift(alert);
+            
+            if (alertLog.length > 10) {
+                alertLog = alertLog.slice(0, 10);
+            }
+            
+            updateAlertDisplay();
+            return alert.id;
+        }
+
+        function resolveAlert(type) {
+            const unresolved = alertLog.find(alert => alert.type === type && !alert.resolved);
+            if (unresolved) {
+                unresolved.resolved = true;
+                unresolved.resolvedTime = new Date().toLocaleTimeString();
+                updateAlertDisplay();
+            }
+        }
+
+        function updateAlertDisplay() {
+            const alertList = $('#alertList');
+            alertList.empty();
+            
+            if (alertLog.length === 0) {
+                alertList.html('<div style="text-align: center; color: var(--text-secondary); font-size: 0.7rem; padding: 1rem;">No alerts</div>');
+                return;
+            }
+            
+            alertLog.forEach(alert => {
+                const alertClass = alert.resolved ? 'alert-item alert-resolved' : 'alert-item';
+                const statusText = alert.resolved ? 'RESOLVED' : 'ACTIVE';
+                const timeText = alert.resolved ? 
+                    `${alert.timestamp} - ${alert.resolvedTime}` : 
+                    alert.timestamp;
+                
+                const alertHtml = `
+                    <div class="${alertClass}">
+                        <div class="alert-timestamp">${timeText} - ${statusText}</div>
+                        <div class="alert-message">${alert.message}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                            Reason: ${alert.reason}
+                        </div>
+                    </div>
+                `;
+                alertList.append(alertHtml);
+            });
+        }
+
+        function updateInterface() {
+            $.ajax({
+                url: '/update',
+                type: 'GET',
+                success: function(data) {
+                    const currentTankVolume = data.tankVolume || 0;
+                    const maxVolume = data.maxVolume || 10000;
+                    const levelPercentage = Math.min((currentTankVolume / maxVolume) * 100, 100);
+                    
+                    $('#waterLevel').css('height', levelPercentage + '%');
+                    $('#tankVolumeDisplay').text(currentTankVolume.toLocaleString());
+                    $('#levelPercentage').text(Math.round(levelPercentage) + '%');
+
+                    $('#intakeValue').text((data.inflowRate || 0) + ' L/s');
+                    $('#treatmentValue').text((data.tankVolume || 0).toLocaleString() + ' L');
+                    $('#outputValue').text((data.outflowRate || 0) + ' L/s');
+
+                    updateStageStatus('#intakeStage', data.inflowRate > 0);
+                    updateStageStatus('#treatmentStage', data.pumpStatus === 1);
+                    updateStageStatus('#outputStage', data.outflowRate > 0);
+
+                    updateWaterGraphics('#intakeWater', data.inflowRate > 0);
+                    updateWaterGraphics('#outputWater', data.outflowRate > 0);
+                    
+                    const treatmentLevelPercentage = Math.min((currentTankVolume / maxVolume) * 100, 100);
+                    $('#treatmentWaterLevel').css('height', treatmentLevelPercentage + '%');
+
+                    const pumpRunning = (data.inflowRate > 0) || (data.outflowRate > 0);
+                    updateStatusIndicator('#pumpStatus', pumpRunning ? 1 : 0);
+                    updateStatusIndicator('#emergencyStatus', data.emergencyStopStatus);
+                    updateStatusIndicator('#inletValveStatus', data.inflowValveStatus);
+                    updateStatusIndicator('#outletValveStatus', data.outflowValveStatus);
+
+                    const isManualMode = data.inflowMode === 1;
+                    $('#modeDisplay').text(isManualMode ? 'Manual' : 'Automatic');
+                    $('#modeSwitch').prop('checked', isManualMode);
+
+                    $('#inflowDisplay').text(data.inflowRate || 0);
+                    $('#outflowDisplay').text(data.outflowRate || 0);
+                    
+                    if (!$('#inflowSlider').is(':focus')) {
+                        $('#inflowSlider').val(data.inflowRate || 0);
+                    }
+                    if (!$('#outflowSlider').is(':focus')) {
+                        $('#outflowSlider').val(data.outflowRate || 0);
+                    }
+
+                    $('#mainSwitch').prop('checked', data.pumpSwitchStatus === 1);
+                    const isEmergencyStop = data.emergencyStopStatus === 1;
+
+                    if (isEmergencyStop) {
+                        if (!alertLog.find(a => a.type === 'emergencyStop' && !a.resolved)) {
+                            addAlert('emergencyStop', 'EMERGENCY STOP ACTIVATED', 'Manual emergency stop - all equipment halted for safety');
+                        }
+                    } else {
+                        resolveAlert('emergencyStop');
+                    }
+
+                    $('#inflowSlider').prop('disabled', !isManualMode);
+                    $('#outflowSlider').prop('disabled', !isManualMode);
+
+                    if (data.overflowed === 1) {
+                        $('#overflowAlarm').addClass('alarm-active');
+                        if (!alertLog.find(a => a.type === 'overflow' && !a.resolved)) {
+                            addAlert('overflow', 'HIGH LEVEL ALARM', 'Tank level exceeded maximum - overflow risk detected by PLC');
+                        }
+                    } else {
+                        $('#overflowAlarm').removeClass('alarm-active');
+                        resolveAlert('overflow');
+                    }
+
+                    if (data.lowLevelAlarm === 1) {
+                        $('#lowLevelAlarm').addClass('alarm-active');
+                        if (!alertLog.find(a => a.type === 'lowLevel' && !a.resolved)) {
+                            addAlert('lowLevel', 'LOW LEVEL ALARM', 'Tank level too low for safe outflow operation - PLC protection active');
+                        }
+                    } else {
+                        $('#lowLevelAlarm').removeClass('alarm-active');
+                        resolveAlert('lowLevel');
+                    }
+
+                    if (data.operatorErrorAlarm === 1) {
+                        $('#operatorErrorAlarm').addClass('alarm-active');
+                        if (!alertLog.find(a => a.type === 'operatorError' && !a.resolved)) {
+                            addAlert('operatorError', 'OPERATOR ERROR', 'Manual command conflicts with safety limits - PLC override active');
+                        }
+                    } else {
+                        $('#operatorErrorAlarm').removeClass('alarm-active');
+                        resolveAlert('operatorError');
+                    }
+
+                    let status = 'Ready';
+                    if (isEmergencyStop) {
+                        status = 'Emergency Stop';
+                    } else if (data.pumpSwitchStatus === 1) {
+                        status = 'Operating';
+                    } else {
+                        status = 'Standby';
+                    }
+                    $('#systemStatus').text(status);
+
+                    let alarmCount = 0;
+                    if (data.overflowed === 1) alarmCount++;
+                    if (data.lowLevelAlarm === 1) alarmCount++;
+                    if (data.operatorErrorAlarm === 1) alarmCount++;
+                    if (isEmergencyStop) alarmCount++;
+                    $('#alarmCount').text(alarmCount);
+                },
+                error: function() {
+                    console.log('Error updating interface');
+                }
+            });
+        }
+
+        function updateStageStatus(selector, isActive) {
+            const stage = $(selector);
+            if (isActive) {
+                stage.addClass('stage-active');
+            } else {
+                stage.removeClass('stage-active');
+            }
+        }
+
+        function updateWaterGraphics(selector, isFlowing) {
+            const water = $(selector);
+            if (isFlowing) {
+                water.css('opacity', '1');
+                water.css('animation-play-state', 'running');
+            } else {
+                water.css('opacity', '0.3');
+                water.css('animation-play-state', 'paused');
+            }
+        }
+
+        function updateStatusIndicator(selector, status) {
+            const indicator = $(selector);
+            indicator.removeClass('status-on status-off status-alarm');
+            
+            if (status === 1) {
+                if (selector === '#emergencyStatus') {
+                    indicator.addClass('status-alarm');
+                } else {
+                    indicator.addClass('status-on');
+                }
+            } else {
+                indicator.addClass('status-off');
+            }
+        }
+
+        function sendCommand(control, value) {
+            $.ajax({
+                url: '/write',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    control: control,
+                    value: value
+                }),
+                success: function(response) {
+                    console.log('Command sent successfully');
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error sending command:', error);
+                }
+            });
+        }
+
+        // Event handlers
+        $('#emergencyStop').click(function() {
+            $.ajax({
+                url: '/update',
+                type: 'GET',
+                success: function(data) {
+                    const currentEStop = data.emergencyStopStatus === 1;
+                    sendCommand('emergencyStop', currentEStop ? 0 : 1);
+                }
+            });
+        });
+
+        $('#mainSwitch').change(function() {
+            sendCommand('pumpSwitch', this.checked ? 1 : 0);
+        });
+
+        $('#modeSwitch').change(function() {
+            sendCommand('inflowMode', this.checked ? 1 : 0);
+        });
+
+        $('#inflowSlider').on('input', function() {
+            const sliderValue = parseInt($('#inflowSlider').val());
+            
+            $.ajax({
+                url: '/update',
+                type: 'GET',
+                success: function(data) {
+                    if (data.inflowMode === 1) {
+                        sendCommand('inflowRate', sliderValue);
+                    }
+                }
+            });
+        });
+
+        $('#outflowSlider').on('input', function() {
+            const sliderValue = parseInt($('#outflowSlider').val());
+            
+            $.ajax({
+                url: '/update',
+                type: 'GET',
+                success: function(data) {
+                    if (data.inflowMode === 1) { // Manual mode
+                        sendCommand('outflowRate', sliderValue);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
