@@ -75,7 +75,7 @@ The Modbus PLC exposes the following registers on port 5020:
 | 2 | COIL_PUMP | Pump Status (1 = Running) |
 | 3 | COIL_IN_VALVE | Inflow Valve (1 = Open) |
 | 4 | COIL_OUT_VALVE | Outflow Valve (1 = Open) |
-| 5 | COIL_AUTO | Auto Mode (1 = Auto, 0 = Manual) |
+| 5 | COIL_AUTO | Auto Mode (0 = Auto, 1 = Manual) |
 | 6 | COIL_ALARM | Overflow Alarm (1 = Active) |
 | 7 | COIL_LOW_LEVEL_ALARM | Low Level Alarm (1 = Active) |
 | 8 | COIL_OPERATOR_ERROR_ALARM | Operator Error Alarm (1 = Active) |
