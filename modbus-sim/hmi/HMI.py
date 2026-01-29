@@ -164,15 +164,15 @@ def index():
 @app.route('/update', methods=['GET'])
 def update():
     return jsonify({
-        'tankLevel': modbus.data['tank_volume'],
+        'tankVolume': modbus.data['tank_volume'],
         'inflowRate': modbus.data['inflow_rate'],
         'outflowRate': modbus.data['outflow_rate'],
-        'pumpSwitch': modbus.data['pump_switch_status'],
-        'emergencyStop': modbus.data['emergency_stop_status'],
-        'inflowValve': modbus.data['inflow_valve_status'],
-        'outflowValve': modbus.data['outflow_valve_status'],
+        'pumpSwitchStatus': modbus.data['pump_switch_status'],
+        'emergencyStopStatus': modbus.data['emergency_stop_status'],
+        'inflowValveStatus': modbus.data['inflow_valve_status'],
+        'outflowValveStatus': modbus.data['outflow_valve_status'],
         'inflowMode': modbus.data['inflow_mode'],
-        'overflowAlarm': modbus.data['overflowed'],
+        'overflowed': modbus.data['overflowed'],
         'maxVolume': modbus.data['max_volume'],
         'lowLevelAlarm': modbus.data['low_level_alarm'],
         'operatorErrorAlarm': modbus.data['operator_error_alarm'],

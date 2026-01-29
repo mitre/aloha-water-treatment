@@ -3,7 +3,7 @@
 A simplified simulation of a water treatment plant with Modbus and BACnet process control.
 Designed to serve as a target for MITRE Caldera for OT.
 
-![Aloha Water Treatment HMI](assets/display.png)
+![Aloha Water Treatment HMI](display.png)
 
 ## Description
 
@@ -68,31 +68,31 @@ Select your deployment mode from the menu:
 The Modbus PLC exposes the following registers on port 5020:
 
 ### Coils (Read/Write)
-| Address | Name               | Description                      |
-|---------|--------------------|----------------------------------|
-| 0       | emergencyStop      | Emergency stop (1=active)        |
-| 1       | pumpSwitch         | Pump switch (1=on)               |
-| 2       | pumpStatus         | Pump status (1=running)          |
-| 3       | inflowValve        | Inflow valve (1=open)            |
-| 4       | outflowValve       | Outflow valve (1=open)           |
-| 5       | inflowMode         | Mode select (0=auto, 1=manual)   |
-| 6       | overflowAlarm      | Overflow alarm (1=active)        |
-| 7       | lowLevelAlarm      | Low level alarm (1=active)       |
-| 8       | operatorErrorAlarm | Operator error (1=active)        |
+| Address | Name | Description |
+|---------|------|-------------|
+| 0 | COIL_ESTOP | Emergency Stop (1 = Active) |
+| 1 | COIL_SWITCH | Pump Switch (1 = On) |
+| 2 | COIL_PUMP | Pump Status (1 = Running) |
+| 3 | COIL_IN_VALVE | Inflow Valve (1 = Open) |
+| 4 | COIL_OUT_VALVE | Outflow Valve (1 = Open) |
+| 5 | COIL_AUTO | Auto Mode (0 = Auto, 1 = Manual) |
+| 6 | COIL_ALARM | Overflow Alarm (1 = Active) |
+| 7 | COIL_LOW_LEVEL_ALARM | Low Level Alarm (1 = Active) |
+| 8 | COIL_OPERATOR_ERROR_ALARM | Operator Error Alarm (1 = Active) |
 
 ### Holding Registers (Read/Write)
-| Address | Name               | Description                      |
-|---------|--------------------|----------------------------------|
-| 0       | tankLevel          | Tank level (0-10000)             |
-| 1       | emergencyStop      | Emergency stop (1=active)        |
-| 2       | pumpSwitch         | Pump switch (1=on)               |
-| 3       | pumpStatus         | Pump status (1=running)          |
-| 4       | inflowValve        | Inflow valve (1=open)            |
-| 5       | outflowValve       | Outflow valve (1=open)           |
-| 6       | inflowRate         | Inflow rate (L/s)                |
-| 7       | outflowRate        | Outflow rate (L/s)               |
-| 8       | inflowMode         | Mode select (0=auto, 1=manual)   |
-| 9       | overflowAlarm      | Overflow alarm (1=active)        |
+| Address | Name | Description |
+|---------|------|-------------|
+| 0 | HR_LEVEL | Tank Level (0-10000) |
+| 1 | HR_ESTOP | Emergency Stop Status |
+| 2 | HR_SWITCH | Pump Switch Status |
+| 3 | HR_PUMP | Pump Status |
+| 4 | HR_IN_VALVE | Inflow Valve Status |
+| 5 | HR_OUT_VALVE | Outflow Valve Status |
+| 6 | HR_IN_FLOW | Inflow Rate |
+| 7 | HR_OUT_FLOW | Outflow Rate |
+| 8 | HR_AUTO | Auto Mode Status |
+| 9 | HR_ALARM | Alarm Status |
 
 ## BACnet Object List
 
