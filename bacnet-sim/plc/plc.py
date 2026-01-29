@@ -47,97 +47,86 @@ async def run_bacnet_plc():
         bacnet.this_application.description = "Water Treatment Plant Controller"
         
         tank_level = analog_value(
-            name="TankLevel",
+            name="tankLevel",
             instance=1,
             description="Treatment tank water level",
             presentValue=0,
             is_commandable=False
         )
-        
         inflow_rate = analog_value(
-            name="InflowRate",
+            name="inflowRate",
             instance=2,
             description="Inlet flow rate",
             presentValue=0,
             is_commandable=True
         )
-        
         outflow_rate = analog_value(
-            name="OutflowRate",
+            name="outflowRate",
             instance=3,
             description="Outlet flow rate",
             presentValue=0,
             is_commandable=True
         )
-        
         emergency_stop = binary_value(
-            name="EmergencyStop",
+            name="emergencyStop",
             instance=1,
-            description="Emergency stop button",
+            description="Emergency stop button/status",
             presentValue=False,
             is_commandable=True
         )
-        
         pump_switch = binary_value(
-            name="PumpSwitch",
+            name="pumpSwitch",
             instance=2,
-            description="Main pump switch",
+            description="Main pump switch/status",
             presentValue=False,
             is_commandable=True
         )
-        
-        auto_mode = binary_value(
-            name="AutoMode",
+        inflow_mode = binary_value(
+            name="inflowMode",
             instance=3,
-            description="Auto/Manual mode (False=Auto, True=Manual)",
+            description="Auto/manual mode (0=Auto, 1=Manual)",
             presentValue=False,
             is_commandable=True
         )
-        
         pump_status = binary_output(
-            name="PumpStatus",
+            name="pumpStatus",
             instance=1,
             description="Pump operational state",
             presentValue=False,
             is_commandable=False
         )
-        
         inflow_valve = binary_output(
-            name="InflowValve",
+            name="inflowValve",
             instance=2,
-            description="Inlet valve state",
+            description="Inlet valve state/status",
             presentValue=False,
             is_commandable=False
         )
-        
         outflow_valve = binary_output(
-            name="OutflowValve",
+            name="outflowValve",
             instance=3,
-            description="Outlet valve state",
+            description="Outlet valve state/status",
             presentValue=False,
             is_commandable=False
         )
-        
         overflow_alarm = binary_output(
-            name="OverflowAlarm",
+            name="overflowAlarm",
             instance=4,
             description="High level alarm",
             presentValue=False,
             is_commandable=False
         )
-        
         low_level_alarm = binary_output(
-            name="LowLevelAlarm",
+            name="lowLevelAlarm",
             instance=5,
             description="Low level alarm",
             presentValue=False,
             is_commandable=False
         )
-        
         operator_error_alarm = binary_output(
-            name="OperatorErrorAlarm",
+            name="operatorErrorAlarm",
             instance=6,
-            description="Operator error / safety violation",
+            description="Operator error/safety violation",
             presentValue=False,
             is_commandable=False
         )
@@ -156,18 +145,18 @@ async def run_bacnet_plc():
         operator_error_alarm.add_objects_to_application(bacnet)
         
         bacnet_objects = {
-            'tankLevel': tank_level.objects["TankLevel"],
-            'inflowRate': inflow_rate.objects["InflowRate"],
-            'outflowRate': outflow_rate.objects["OutflowRate"],
-            'emergencyStop': emergency_stop.objects["EmergencyStop"],
-            'pumpSwitch': pump_switch.objects["PumpSwitch"],
-            'autoMode': auto_mode.objects["AutoMode"],
-            'pumpStatus': pump_status.objects["PumpStatus"],
-            'inflowValve': inflow_valve.objects["InflowValve"],
-            'outflowValve': outflow_valve.objects["OutflowValve"],
-            'overflowAlarm': overflow_alarm.objects["OverflowAlarm"],
-            'lowLevelAlarm': low_level_alarm.objects["LowLevelAlarm"],
-            'operatorErrorAlarm': operator_error_alarm.objects["OperatorErrorAlarm"]
+            'tankLevel': tank_level.objects["tankLevel"],
+            'inflowRate': inflow_rate.objects["inflowRate"],
+            'outflowRate': outflow_rate.objects["outflowRate"],
+            'emergencyStop': emergency_stop.objects["emergencyStop"],
+            'pumpSwitch': pump_switch.objects["pumpSwitch"],
+            'inflowMode': inflow_mode.objects["inflowMode"],
+            'pumpStatus': pump_status.objects["pumpStatus"],
+            'inflowValve': inflow_valve.objects["inflowValve"],
+            'outflowValve': outflow_valve.objects["outflowValve"],
+            'overflowAlarm': overflow_alarm.objects["overflowAlarm"],
+            'lowLevelAlarm': low_level_alarm.objects["lowLevelAlarm"],
+            'operatorErrorAlarm': operator_error_alarm.objects["operatorErrorAlarm"]
         }
         
         print(f"PLC running on BACnet device {BACNET_DEVICE_ID} at {BACNET_IP}")

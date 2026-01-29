@@ -50,19 +50,19 @@ class ModbusClient:
         self.thread.start()
 
         self.data = {
-            'emergency_stop_status': None,
-            'pump_switch_status': None,
-            'pump_status': None,
-            'inflow_valve_status': None,
-            'outflow_valve_status': None,
-            'overflowed': None,
-            'inflow_mode': None,
-            'tank_volume': None,
-            'max_volume': TANK_MAX,
-            'inflow_rate': None,
-            'outflow_rate': None,
-            'low_level_alarm': None,
-            'operator_error_alarm': None
+            'emergencyStopStatus': None,
+            'pumpSwitchStatus': None,
+            'pumpStatus': None,
+            'inflowValveStatus': None,
+            'outflowValveStatus': None,
+            'overflowAlarm': None,
+            'inflowMode': None,
+            'tankLevel': None,
+            'maxVolume': TANK_MAX,
+            'inflowRate': None,
+            'outflowRate': None,
+            'lowLevelAlarm': None,
+            'operatorErrorAlarm': None
         }
 
     def _read_data(self):
@@ -71,15 +71,15 @@ class ModbusClient:
                 coil_response = self.client.read_coils(COIL_BASE, count=10)
                 if not coil_response.isError():
                     coil_values = coil_response.bits
-                    self.data['emergency_stop_status'] = int(coil_values[COIL_ESTOP]) if coil_values[COIL_ESTOP] is not None else None
-                    self.data['pump_switch_status'] = int(coil_values[COIL_SWITCH]) if coil_values[COIL_SWITCH] is not None else None
-                    self.data['pump_status'] = int(coil_values[COIL_PUMP]) if coil_values[COIL_PUMP] is not None else None
-                    self.data['inflow_valve_status'] = int(coil_values[COIL_IN_VALVE]) if coil_values[COIL_IN_VALVE] is not None else None
-                    self.data['outflow_valve_status'] = int(coil_values[COIL_OUT_VALVE]) if coil_values[COIL_OUT_VALVE] is not None else None
-                    self.data['overflowed'] = int(coil_values[COIL_ALARM]) if coil_values[COIL_ALARM] is not None else None
-                    self.data['inflow_mode'] = int(coil_values[COIL_AUTO]) if coil_values[COIL_AUTO] is not None else None
-                    self.data['low_level_alarm'] = int(coil_values[COIL_LOW_LEVEL_ALARM]) if coil_values[COIL_LOW_LEVEL_ALARM] is not None else None
-                    self.data['operator_error_alarm'] = int(coil_values[COIL_OPERATOR_ERROR_ALARM]) if coil_values[COIL_OPERATOR_ERROR_ALARM] is not None else None
+                    self.data['emergencyStopStatus'] = int(coil_values[COIL_ESTOP]) if coil_values[COIL_ESTOP] is not None else None
+                    self.data['pumpSwitchStatus'] = int(coil_values[COIL_SWITCH]) if coil_values[COIL_SWITCH] is not None else None
+                    self.data['pumpStatus'] = int(coil_values[COIL_PUMP]) if coil_values[COIL_PUMP] is not None else None
+                    self.data['inflowValveStatus'] = int(coil_values[COIL_IN_VALVE]) if coil_values[COIL_IN_VALVE] is not None else None
+                    self.data['outflowValveStatus'] = int(coil_values[COIL_OUT_VALVE]) if coil_values[COIL_OUT_VALVE] is not None else None
+                    self.data['overflowAlarm'] = int(coil_values[COIL_ALARM]) if coil_values[COIL_ALARM] is not None else None
+                    self.data['inflowMode'] = int(coil_values[COIL_AUTO]) if coil_values[COIL_AUTO] is not None else None
+                    self.data['lowLevelAlarm'] = int(coil_values[COIL_LOW_LEVEL_ALARM]) if coil_values[COIL_LOW_LEVEL_ALARM] is not None else None
+                    self.data['operatorErrorAlarm'] = int(coil_values[COIL_OPERATOR_ERROR_ALARM]) if coil_values[COIL_OPERATOR_ERROR_ALARM] is not None else None
             except Exception as e:
                 print(f"Error reading coils: {e}")
 
@@ -87,16 +87,16 @@ class ModbusClient:
                 hr_response = self.client.read_holding_registers(HR_BASE, count=REGISTER_COUNT)
                 if not hr_response.isError():
                     hr_values = hr_response.registers
-                    self.data['tank_volume'] = hr_values[HR_LEVEL]
-                    self.data['emergency_stop_status'] = hr_values[HR_ESTOP]
-                    self.data['pump_switch_status'] = hr_values[HR_SWITCH]
-                    self.data['pump_status'] = hr_values[HR_PUMP]
-                    self.data['inflow_valve_status'] = hr_values[HR_IN_VALVE]
-                    self.data['outflow_valve_status'] = hr_values[HR_OUT_VALVE]
-                    self.data['inflow_rate'] = hr_values[HR_IN_FLOW]
-                    self.data['outflow_rate'] = hr_values[HR_OUT_FLOW]
-                    self.data['inflow_mode'] = hr_values[HR_AUTO]
-                    self.data['overflowed'] = hr_values[HR_ALARM]
+                    self.data['tankLevel'] = hr_values[HR_LEVEL]
+                    self.data['emergencyStopStatus'] = hr_values[HR_ESTOP]
+                    self.data['pumpSwitchStatus'] = hr_values[HR_SWITCH]
+                    self.data['pumpStatus'] = hr_values[HR_PUMP]
+                    self.data['inflowValveStatus'] = hr_values[HR_IN_VALVE]
+                    self.data['outflowValveStatus'] = hr_values[HR_OUT_VALVE]
+                    self.data['inflowRate'] = hr_values[HR_IN_FLOW]
+                    self.data['outflowRate'] = hr_values[HR_OUT_FLOW]
+                    self.data['inflowMode'] = hr_values[HR_AUTO]
+                    self.data['overflowAlarm'] = hr_values[HR_ALARM]
             except Exception as e:
                 print(f"Error reading registers: {e}")
                 
@@ -105,7 +105,7 @@ class ModbusClient:
     def write_data(self, control, value):
         print(f"Command: {control}={value}")
         try:
-            if self.data['inflow_mode'] == 0:
+            if self.data['inflowMode'] == 0:
                 if control in ['outflowRate', 'inflowRate']:
                     return jsonify({"error": "Flow rates are auto-controlled in auto mode"}), 400
             
@@ -164,19 +164,19 @@ def index():
 @app.route('/update', methods=['GET'])
 def update():
     return jsonify({
-        'tankVolume': modbus.data['tank_volume'],
-        'inflowRate': modbus.data['inflow_rate'],
-        'outflowRate': modbus.data['outflow_rate'],
-        'pumpSwitchStatus': modbus.data['pump_switch_status'],
-        'emergencyStopStatus': modbus.data['emergency_stop_status'],
-        'inflowValveStatus': modbus.data['inflow_valve_status'],
-        'outflowValveStatus': modbus.data['outflow_valve_status'],
-        'inflowMode': modbus.data['inflow_mode'],
-        'overflowed': modbus.data['overflowed'],
-        'maxVolume': modbus.data['max_volume'],
-        'lowLevelAlarm': modbus.data['low_level_alarm'],
-        'operatorErrorAlarm': modbus.data['operator_error_alarm'],
-        'pumpStatus': modbus.data['pump_status']
+        'tankLevel': modbus.data['tankLevel'],
+        'inflowRate': modbus.data['inflowRate'],
+        'outflowRate': modbus.data['outflowRate'],
+        'pumpSwitchStatus': modbus.data['pumpSwitchStatus'],
+        'emergencyStopStatus': modbus.data['emergencyStopStatus'],
+        'inflowValveStatus': modbus.data['inflowValveStatus'],
+        'outflowValveStatus': modbus.data['outflowValveStatus'],
+        'inflowMode': modbus.data['inflowMode'],
+        'overflowAlarm': modbus.data['overflowAlarm'],
+        'maxVolume': modbus.data['maxVolume'],
+        'lowLevelAlarm': modbus.data['lowLevelAlarm'],
+        'operatorErrorAlarm': modbus.data['operatorErrorAlarm'],
+        'pumpStatus': modbus.data['pumpStatus']
     })
 
 
