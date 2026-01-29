@@ -3,7 +3,7 @@
 A simplified simulation of a water treatment plant with Modbus and BACnet process control.
 Designed to serve as a target for MITRE Caldera for OT.
 
-![Aloha Water Treatment HMI](display.png)
+![Aloha Water Treatment HMI](assets/display.png)
 
 ## Description
 
