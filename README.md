@@ -70,29 +70,29 @@ The Modbus PLC exposes the following registers on port 5020:
 ### Coils (Read/Write)
 | Address | Name | Description |
 |---------|------|-------------|
-| 0 | COIL_ESTOP | Emergency Stop (1 = Active) |
-| 1 | COIL_SWITCH | Pump Switch (1 = On) |
-| 2 | COIL_PUMP | Pump Status (1 = Running) |
-| 3 | COIL_IN_VALVE | Inflow Valve (1 = Open) |
-| 4 | COIL_OUT_VALVE | Outflow Valve (1 = Open) |
-| 5 | COIL_AUTO | Auto Mode (0 = Auto, 1 = Manual) |
-| 6 | COIL_ALARM | Overflow Alarm (1 = Active) |
-| 7 | COIL_LOW_LEVEL_ALARM | Low Level Alarm (1 = Active) |
-| 8 | COIL_OPERATOR_ERROR_ALARM | Operator Error Alarm (1 = Active) |
+| 0 | EmergencyStop | Emergency stop (1 = active) |
+| 1 | PumpSwitch | Pump switch (1 = on) |
+| 2 | PumpStatus | Pump status (1 = running) |
+| 3 | InflowValve | Inflow valve (1 = open) |
+| 4 | OutflowValve | Outflow valve (1 = open) |
+| 5 | InflowMode | Mode select (0 = Auto, 1 = Manual) |
+| 6 | OverflowAlarm | Overflow alarm (1 = active) |
+| 7 | LowLevelAlarm | Low level alarm (1 = active) |
+| 8 | OperatorErrorAlarm | Operator error (1 = active) |
 
 ### Holding Registers (Read/Write)
 | Address | Name | Description |
 |---------|------|-------------|
-| 0 | HR_LEVEL | Tank Level (0-10000) |
-| 1 | HR_ESTOP | Emergency Stop Status |
-| 2 | HR_SWITCH | Pump Switch Status |
-| 3 | HR_PUMP | Pump Status |
-| 4 | HR_IN_VALVE | Inflow Valve Status |
-| 5 | HR_OUT_VALVE | Outflow Valve Status |
-| 6 | HR_IN_FLOW | Inflow Rate |
-| 7 | HR_OUT_FLOW | Outflow Rate |
-| 8 | HR_AUTO | Auto Mode Status |
-| 9 | HR_ALARM | Alarm Status |
+| 0 | TankLevel | Tank level (0-10000) |
+| 1 | EmergencyStop | Emergency stop (1 = active) |
+| 2 | PumpSwitch | Pump switch (1 = on) |
+| 3 | PumpStatus | Pump status (1 = running) |
+| 4 | InflowValve | Inflow valve (1 = open) |
+| 5 | OutflowValve | Outflow valve (1 = open) |
+| 6 | InflowRate | Inflow rate (L/s) |
+| 7 | OutflowRate | Outflow rate (L/s) |
+| 8 | InflowMode | Mode select (0 = Auto, 1 = Manual) |
+| 9 | OverflowAlarm | Overflow alarm (1 = active) |
 
 ## BACnet Object List
 
@@ -110,7 +110,7 @@ The BACnet PLC exposes the following objects (Device ID 1001):
 |----------|------|-------------|
 | 1 | EmergencyStop | Emergency stop button |
 | 2 | PumpSwitch | Main pump switch |
-| 3 | AutoMode | Auto/Manual mode (False=Auto, True=Manual) |
+| 3 | InflowMode | Inflow mode (False = Auto, True = Manual) |
 
 ### Binary Outputs
 | Instance | Name | Description |
