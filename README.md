@@ -12,6 +12,8 @@ training. It includes PLC servers and web-based HMIs, useful for practicing
 protocol interactions without physical hardware.
 
 ## Getting Started
+For a detailed walkthrough please read our medium article on Aloha!
+https://medium.com/@mitrecaldera/caldera-for-ot-aloha-water-treatment-more-virtual-ot-sandboxes-080dc437da89
 
 ### Dependencies
 
