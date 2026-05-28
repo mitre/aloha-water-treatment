@@ -73,17 +73,17 @@ def setup_modbus_server():
     ]
     
     holding_registers = ModbusSequentialDataBlock(
-        0x00, 
+        0x01,
         [0] + holding_register_values + [0] * (REGISTER_COUNT - len(holding_register_values))
     )
-    
+
     coils = ModbusSequentialDataBlock(
-        0x00, 
+        0x01,
         [0] + coil_values + [0] * (REGISTER_COUNT - len(coil_values))
     )
-    
-    input_registers = ModbusSequentialDataBlock(0x00, [0] * REGISTER_COUNT)
-    discrete_inputs = ModbusSequentialDataBlock(0x00, [0] * REGISTER_COUNT)
+
+    input_registers = ModbusSequentialDataBlock(0x01, [0] * REGISTER_COUNT)
+    discrete_inputs = ModbusSequentialDataBlock(0x01, [0] * REGISTER_COUNT)
 
     device = ModbusDeviceIdentification()
     device.VendorName = "Aloha Water Treatment"
