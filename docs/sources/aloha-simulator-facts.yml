@@ -1,0 +1,101 @@
+---
+
+id: a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d
+name: Aloha Water Treatment Facts
+facts:
+
+# MODBUS CONNECTION FACTS
+
+- trait: modbus.server.ip # IP address of the Modbus PLC
+  value: 127.0.0.1
+- trait: modbus.server.port # TCP port for the Modbus PLC
+  value: 5020
+
+# MODBUS READ FACTS
+
+- trait: modbus.read_coil.start # First coil to read
+  value: 0
+- trait: modbus.read_coil.count # Number of coils to read
+  value: 9
+- trait: modbus.read_holding.start # First holding register to read
+  value: 0
+- trait: modbus.read_holding.count # Number of holding registers to read
+  value: 10
+
+# MODBUS WRITE FACTS
+
+- trait: modbus.write_coil.start # EmergencyStop
+  value: 0
+- trait: modbus.write_coil.start # PumpSwitch
+  value: 1
+- trait: modbus.write_coil.start # InflowMode / manual mode
+  value: 5
+- trait: modbus.write_coil.value # Coil value to write
+  value: 'ON'
+- trait: modbus.write_register.start # InflowRate
+  value: 6
+- trait: modbus.write_register.start # OutflowRate
+  value: 7
+- trait: modbus.write_register.value # High inflow
+  value: 900
+- trait: modbus.write_register.value # Low outflow
+  value: 50
+
+# BACNET DEVICE FACTS
+
+- trait: bacnet.device.instance # Aloha BACnet device instance
+  value: 1001
+
+# BACNET READ FACTS
+
+- trait: bacnet.obj.type # Device object
+  value: device
+- trait: bacnet.obj.instance # Device object instance
+  value: 1001
+- trait: bacnet.obj.property # Object list
+  value: 76
+- trait: bacnet.read.index # Whole array
+  value: -2
+- trait: bacnet.object.type # TankLevel
+  value: analog-value
+- trait: bacnet.object.instance # TankLevel
+  value: 1
+- trait: bacnet.object.type # PumpStatus / alarms
+  value: binary-output
+- trait: bacnet.object.instance # PumpStatus
+  value: 1
+- trait: bacnet.object.instance # OverflowAlarm
+  value: 4
+
+# BACNET WRITE FACTS
+
+- trait: bacnet.obj.type # PumpSwitch / ManualMode / EmergencyStop
+  value: binary-value
+- trait: bacnet.obj.type # InflowRate / OutflowRate
+  value: analog-value
+- trait: bacnet.obj.instance # EmergencyStop
+  value: 1
+- trait: bacnet.obj.instance # PumpSwitch
+  value: 2
+- trait: bacnet.obj.instance # ManualMode
+  value: 3
+- trait: bacnet.obj.instance # InflowRate
+  value: 2
+- trait: bacnet.obj.instance # OutflowRate
+  value: 3
+- trait: bacnet.obj.property # Present value
+  value: present-value
+- trait: bacnet.write.priority # BACnet write priority
+  value: 5
+- trait: bacnet.write.index # Write entire property
+  value: -1
+- trait: bacnet.write.tag # Enumerated, for binary values
+  value: 9
+- trait: bacnet.write.tag # Real, for analog values
+  value: 4
+- trait: bacnet.write.value # Active
+  value: 1
+- trait: bacnet.write.value # High inflow
+  value: 900
+- trait: bacnet.write.value # Low outflow
+  value: 50

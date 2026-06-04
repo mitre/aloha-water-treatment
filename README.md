@@ -65,6 +65,36 @@ Select your deployment mode from the menu:
 *   PLC uses BACnet device ID 1001, HMI runs on port 8090
 *   Note: BACnet components must run on separate endpoints
 
+## Caldera OT Integration
+
+This repo ships a fact source and adversary profiles for use with [MITRE Caldera for OT](https://github.com/mitre/caldera-ot) and its Modbus and BACnet plugins.
+
+### Setup
+
+The files below are templates - copy them into the matching Caldera plugin directory and adjust values for your environment:
+
+| Template | Destination |
+|---|---|
+| `docs/sources/aloha-simulator-facts.yml` | `plugins/<protocol>/data/sources/` |
+| `docs/adversaries/modbus-reconnaissance.yml` | `plugins/modbus/data/adversaries/` |
+| `docs/adversaries/modbus-manual-overflow.yml` | `plugins/modbus/data/adversaries/` |
+| `docs/adversaries/modbus-emergency-stop.yml` | `plugins/modbus/data/adversaries/` |
+| `docs/adversaries/bacnet-reconnaissance.yml` | `plugins/bacnet/data/adversaries/` |
+| `docs/adversaries/bacnet-manual-overflow.yml` | `plugins/bacnet/data/adversaries/` |
+| `docs/adversaries/bacnet-emergency-stop.yml` | `plugins/bacnet/data/adversaries/` |
+
+Restart Caldera after copying so it picks up the new files.
+
+### Scenarios
+
+Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network.
+
+| Adversary | Scenario | Description |
+|---|---|---|
+| Aloha Modbus/BACnet Reconnaissance | [Scenario 1](docs/scenarios/scenario_1_reconnaissance.md) | Read process values and control points without changing state |
+| Aloha Modbus/BACnet Manual Overflow | [Scenario 2](docs/scenarios/scenario_2_manual_overflow.md) | Switch to manual control, set inflow higher than outflow, and watch for overflow |
+| Aloha Modbus/BACnet Emergency Stop | [Scenario 3](docs/scenarios/scenario_3_emergency_stop.md) | Trigger emergency stop and verify the process shuts down |
+
 ## Modbus Register Map
 
 The Modbus PLC exposes the following registers on port 5020:
