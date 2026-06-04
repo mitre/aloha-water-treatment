@@ -1,0 +1,12 @@
+---
+
+id: e6f7a8b9-c0d1-2e3f-4a5b-6c7d8e9f0a1b
+name: Aloha BACnet Manual Overflow
+description: Switch Aloha to manual mode, set inflow above outflow, and verify overflow behavior
+atomic_ordering:
+  - bd13ac81-b932-463d-95aa-a22aeefbc9ac  # BACnet Object Collection - Basic (baseline)
+  - 1a2faf5a-4601-11eb-b378-0242ac130002  # BACnet Write Property (PumpSwitch active)
+  - 1a2faf5a-4601-11eb-b378-0242ac130002  # BACnet Write Property (ManualMode active)
+  - 1a2faf5a-4601-11eb-b378-0242ac130002  # BACnet Write Property (InflowRate high)
+  - 1a2faf5a-4601-11eb-b378-0242ac130002  # BACnet Write Property (OutflowRate low)
+  - bd13ac81-b932-463d-95aa-a22aeefbc9ac  # BACnet Object Collection - Basic (verify)

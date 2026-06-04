@@ -1,0 +1,9 @@
+---
+
+id: f7a8b9c0-d1e2-3f4a-5b6c-7d8e9f0a1b2c
+name: Aloha BACnet Emergency Stop
+description: Write the Aloha emergency stop BACnet object and verify process shutdown
+atomic_ordering:
+  - bd13ac81-b932-463d-95aa-a22aeefbc9ac  # BACnet Object Collection - Basic (baseline)
+  - 1a2faf5a-4601-11eb-b378-0242ac130002  # BACnet Write Property (EmergencyStop active)
+  - bd13ac81-b932-463d-95aa-a22aeefbc9ac  # BACnet Object Collection - Basic (verify)
