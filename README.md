@@ -17,8 +17,8 @@ https://medium.com/@mitrecaldera/caldera-for-ot-aloha-water-treatment-more-virtu
 
 ### Dependencies
 
-* Python 3
-* Flask, BAC0, pymodbus (see requirements.txt)
+* Python >= 3.14 (see `.python-version`)
+* Flask, BAC0, pymodbus==3.11.4 (see requirements.txt)
 
 ### Installation
 
