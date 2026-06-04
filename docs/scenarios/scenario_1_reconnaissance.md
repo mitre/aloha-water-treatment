@@ -76,7 +76,7 @@ build an operation using the BACnet abilities below.
 
 ## See Also
 
-- [MITRE Caldera for OT](https://github.com/mitre/caldera-ot)
+- [Caldera for OT](https://github.com/mitre/caldera-ot)
 - [ATT&CK for ICS - T0802](https://attack.mitre.org/techniques/T0802/)
 - [ATT&CK for ICS - T0846](https://attack.mitre.org/techniques/T0846/)
 - [ATT&CK for ICS - T0861](https://attack.mitre.org/techniques/T0861/)

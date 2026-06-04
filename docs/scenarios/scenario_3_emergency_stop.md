@@ -87,6 +87,6 @@ Control data:
 
 ## See Also
 
-- [MITRE Caldera for OT](https://github.com/mitre/caldera-ot)
+- [Caldera for OT](https://github.com/mitre/caldera-ot)
 - [ATT&CK for ICS - T0803](https://attack.mitre.org/techniques/T0803/)
 - [ATT&CK for ICS - T0831](https://attack.mitre.org/techniques/T0831/)
