@@ -1,7 +1,7 @@
 # Aloha Water Treatment Simulator
 
 A simplified simulation of a water treatment plant with Modbus and BACnet process control.
-Designed to serve as a target for MITRE Caldera for OT.
+Designed to serve as a target for Caldera for OT.
 
 ![Aloha Water Treatment HMI](assets/display.png)
 
@@ -67,7 +67,7 @@ Select your deployment mode from the menu:
 
 ## Caldera OT Integration
 
-This repo ships a fact source and adversary profiles for use with [MITRE Caldera for OT](https://github.com/mitre/caldera-ot) and its Modbus and BACnet plugins.
+This repo ships a fact source and adversary profiles for use with [Caldera for OT](https://github.com/mitre/caldera-ot) and its Modbus and BACnet plugins.
 
 ### Setup
 
