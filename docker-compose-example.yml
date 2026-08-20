@@ -1,0 +1,26 @@
+services:
+  aloha-plc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ALOHA_RUNMODE: plc
+      ALOHA_PROTOCOL: modbus
+      ALOHA_IP: 0.0.0.0
+      ALOHA_PORT: "5020"
+    ports:
+      - "5020:5020"
+
+  aloha-hmi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ALOHA_RUNMODE: hmi
+      ALOHA_PROTOCOL: modbus
+      ALOHA_IP: aloha-plc
+      ALOHA_PORT: "5020"
+    ports:
+      - "8090:8090"
+    depends_on:
+      - aloha-plc

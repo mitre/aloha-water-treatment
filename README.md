@@ -18,7 +18,7 @@ https://medium.com/@mitrecaldera/caldera-for-ot-aloha-water-treatment-more-virtu
 ### Dependencies
 
 * Python >= 3.14 (see `.python-version`)
-* Flask, BAC0, pymodbus==3.11.4 (see requirements.txt)
+* Flask, BAC0, pymodbus==3.11.4, python-dotenv (see requirements.txt)
 
 ### Installation
 
@@ -42,7 +42,12 @@ python run.py
 Follow the steps below to interact with the Aloha Water Treatment control
 system using the web interface or protocol clients:
 
-### Step 1: Start the Simulator
+You can run Aloha in three ways:
+* [Interactive](#interactive-start-the-simulator)
+* [Automated](#automated)
+* [Docker](#docker)
+
+### Interactive: Start the Simulator
 ```bash
 python run.py
 ```
@@ -53,17 +58,44 @@ Select your deployment mode from the menu:
 *   **Local**: Runs both PLC and HMI on the same system
     *   Prompts for port selection (502 or 5020, default 5020)
 *   **Distributed**: Runs PLC or HMI separately on different systems
-    *   For PLC: Prompts for bind IP address (default 0.0.0.0) and port (502 or 5020, default 5020)
+    *   For PLC: Prompts for bind IP address (default 127.0.0.1) and port (502 or 5020, default 5020)
     *   For HMI: Prompts for PLC IP address to connect to (default 127.0.0.1) and port (default 5020)
 *   Note: Port 502 is the standard Modbus port but requires root/admin privileges
 *   PLC listens on selected port, HMI runs on port 8090
 
 **BACnet**
 *   **Distributed**: Runs PLC or HMI separately (required for BACnet)
-    *   For PLC: Prompts for PLC IP address (default 127.0.0.1, automatically adds /24)
+    *   For PLC: Prompts for PLC IP address (default 127.0.0.1, BACnet may require CIDR notation)
     *   For HMI: Prompts for PLC IP address to connect to (default 127.0.0.1)
 *   PLC uses BACnet device ID 1001, HMI runs on port 8090
 *   Note: BACnet components must run on separate endpoints
+
+### Automated
+
+Copy `.env.example` to `.env` and adjust the values for your environment:
+
+| Variable | Example |
+|----------|---------|
+| ALOHA_RUNMODE  | local      |
+| ALOHA_PROTOCOL | modbus     |
+| ALOHA_IP       | 127.0.0.1  |
+| ALOHA_PORT     | 5020       |
+
+Run the simulator from the environment file:
+```bash
+python runenv.py
+```
+
+### Docker
+
+The main compose example runs the Modbus PLC and HMI in separate containers on an internal network. The example under `docker/` also includes Caldera.
+
+Docker support is focused on Modbus. BACnet may not work in Docker because BAC0 can have issues with BACnet/IP discovery and addressing across container networks. If you have a working BACnet Docker setup, please open a pull request with the details.
+
+You can stand up the default stack using:
+```bash
+docker compose -f docker-compose-example.yml up --build -d
+```
 
 ## Caldera OT Integration
 
@@ -87,13 +119,14 @@ Restart Caldera after copying so it picks up the new files.
 
 ### Scenarios
 
-Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network.
+Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network; Docker support is still focused on Modbus.
 
 | Adversary | Scenario | Description |
 |---|---|---|
 | Aloha Modbus/BACnet Reconnaissance | [Scenario 1](docs/scenarios/scenario_1_reconnaissance.md) | Read process values and control points without changing state |
 | Aloha Modbus/BACnet Manual Overflow | [Scenario 2](docs/scenarios/scenario_2_manual_overflow.md) | Switch to manual control, set inflow higher than outflow, and watch for overflow |
 | Aloha Modbus/BACnet Emergency Stop | [Scenario 3](docs/scenarios/scenario_3_emergency_stop.md) | Trigger emergency stop and verify the process shuts down |
+
 
 ## Modbus Register Map
 
@@ -153,3 +186,11 @@ The BACnet PLC exposes the following objects (Device ID 1001):
 | 4 | OverflowAlarm | High level alarm |
 | 5 | LowLevelAlarm | Low level alarm |
 | 6 | OperatorErrorAlarm | Operator error / safety violation |
+
+## Development
+
+For notes on adding another protocol, see [Adding a Protocol](docs/adding-protocol.md).
+
+## Acknowledgments
+
+Aloha was originally developed by Samir Boussarhane for a UH Manoa workshop. We encourage pull requests with improvements, new features, deployment notes, documentation, and tests.
