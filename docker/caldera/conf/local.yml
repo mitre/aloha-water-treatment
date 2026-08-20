@@ -1,0 +1,57 @@
+ability_refresh: 60
+api_key_blue: API_KEY
+api_key_red: API_KEY
+app.contact.dns.domain: mycaldera.caldera
+app.contact.dns.socket: 0.0.0.0:8853
+app.contact.ftp.host: 0.0.0.0
+app.contact.ftp.port: 2222
+app.contact.ftp.pword: CHANGE_ME_FTP_PASSWORD
+app.contact.ftp.server.dir: ftp_dir
+app.contact.ftp.user: caldera_user
+app.contact.gist: API_KEY
+app.contact.html: /weather
+app.contact.http: http://0.0.0.0:8888
+app.contact.slack.api_key: API_KEY
+app.contact.slack.bot_id: CHANGE_ME_SLACK_BOT_ID
+app.contact.slack.channel_id: CHANGE_ME_SLACK_CHANNEL_ID
+app.contact.tcp: 0.0.0.0:7010
+app.contact.tunnel.ssh.host_key_file: CHANGE_ME_SSH_HOST_KEY_FILE
+app.contact.tunnel.ssh.host_key_passphrase: CHANGE_ME_SSH_KEY_PASSPHRASE
+app.contact.tunnel.ssh.socket: 0.0.0.0:8022
+app.contact.tunnel.ssh.user_name: sandcat
+app.contact.tunnel.ssh.user_password: CHANGE_ME_SSH_PASSWORD
+app.contact.udp: 0.0.0.0:7011
+app.contact.websocket: 0.0.0.0:7012
+auth.login.handler.module: default
+crypt_salt: CHANGE_ME_CRYPT_SALT
+encryption_key: CHANGE_ME_ENCRYPTION_KEY
+exfil_dir: /tmp/caldera
+host: 0.0.0.0
+objects.planners.default: atomic
+plugins:
+- fieldmanual
+- manx
+- sandcat
+- stockpile
+- modbus
+- bacnet
+port: 8888
+reachable_host_traits:
+- remote.host.fqdn
+- remote.host.ip
+reports_dir: /tmp
+requirements:
+  go:
+    command: go version
+    type: installed_program
+    version: 1.19
+  python:
+    attr: version
+    module: sys
+    type: python_module
+    version: 3.9.0
+users:
+  blue:
+    blue: CHANGE_ME_BLUE_PASSWORD
+  red:
+    red: CHANGE_ME_RED_PASSWORD

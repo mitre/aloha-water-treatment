@@ -1,3 +1,4 @@
 BAC0>=22.9.9
 flask>=3.1.1
 pymodbus==3.11.4
+python-dotenv>=1.0.0

@@ -1,0 +1,55 @@
+name: "aloha"
+
+# Change the environment variables to reflect your protocol
+# and operating environment
+services:
+  caldera:
+    build:
+      context: .
+      dockerfile: caldera.Dockerfile
+    init: true
+    restart: always
+    volumes:
+    - ./caldera/conf/local.yml:/app/conf/local.yml
+    - ./caldera/conf/agents.yml:/app/conf/agents.yml
+    - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+    - "8888:8888"
+    networks:
+      - aloha
+  aloha-plc:
+    build:
+      context: ..
+      dockerfile: docker/aloha.Dockerfile
+    init: true
+    restart: unless-stopped
+    environment:
+      - ALOHA_RUNMODE=plc
+      - ALOHA_PROTOCOL=modbus
+      - ALOHA_IP=0.0.0.0
+      - ALOHA_PORT=5020
+    networks:
+      - aloha
+  aloha-hmi:
+    build:
+      context: ..
+      dockerfile: docker/aloha.Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      aloha-plc:
+        condition: service_started
+        restart: true
+    environment:
+      - ALOHA_RUNMODE=hmi
+      - ALOHA_PROTOCOL=modbus
+      - ALOHA_IP=aloha-plc
+      - ALOHA_PORT=5020
+    ports:
+      - "8090:8090"
+    networks:
+      - aloha
+
+networks:
+  aloha:
+    driver: bridge
