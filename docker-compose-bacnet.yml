@@ -1,0 +1,42 @@
+# BACnet lab: PLC and HMI as separate containers, each with its own UDP 47808.
+# A BACnet/IP client and server can't share port 47808 on one host, so they run as
+# separate containers on a bridge with static IPs; the HMI reaches the PLC by IP.
+services:
+  aloha-plc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ALOHA_RUNMODE: plc
+      ALOHA_PROTOCOL: bacnet
+      ALOHA_IP: 172.30.0.10
+      ALOHA_PORT: "502"          # satisfies the entrypoint; BACnet/IP uses UDP 47808
+    networks:
+      bacnet-lab:
+        ipv4_address: 172.30.0.10
+    ports:
+      - "47808:47808/udp"
+
+  aloha-hmi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ALOHA_RUNMODE: hmi
+      ALOHA_PROTOCOL: bacnet
+      ALOHA_IP: 172.30.0.10       # the PLC's address
+      ALOHA_PORT: "502"
+    networks:
+      bacnet-lab:
+        ipv4_address: 172.30.0.11
+    ports:
+      - "8090:8090"
+    depends_on:
+      - aloha-plc
+
+networks:
+  bacnet-lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

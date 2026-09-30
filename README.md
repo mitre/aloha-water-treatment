@@ -90,11 +90,14 @@ python runenv.py
 
 The main compose example runs the Modbus PLC and HMI in separate containers on an internal network. The example under `docker/` also includes Caldera.
 
-Docker support is focused on Modbus. BACnet may not work in Docker because BAC0 can have issues with BACnet/IP discovery and addressing across container networks. If you have a working BACnet Docker setup, please open a pull request with the details.
-
-You can stand up the default stack using:
+You can stand up the default Modbus stack with:
 ```bash
 docker compose -f docker-compose-example.yml up --build -d
+```
+
+BACnet/IP communicates over UDP port 47808. The server and the HMI both need that port, and two programs can't share one port on the same machine, so each runs in its own container and reaches the other over the network by IP. For BACnet:
+```bash
+docker compose -f docker-compose-bacnet.yml up --build -d
 ```
 
 ## Caldera OT Integration
@@ -119,7 +122,7 @@ Restart Caldera after copying so it picks up the new files.
 
 ### Scenarios
 
-Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network; Docker support is still focused on Modbus.
+Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network; in Docker the PLC and HMI run as separate containers (see `docker-compose-bacnet.yml`).
 
 | Adversary | Scenario | Description |
 |---|---|---|
