@@ -7,6 +7,7 @@ import asyncio
 import logging
 import threading
 import os
+import socket
 import BAC0
 
 from typing import Any
@@ -32,8 +33,13 @@ class BACnetClient(HMIClientInterface):
         """
         Initialize the BACnet client state and start the background update loop.
         """
-        # Read the target BACnet device IP from configuration.
-        self.device_ip = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1")
+        # Read the target BACnet device from configuration. BAC0's write parser
+        # only accepts a numeric address, so resolve a hostname to its IP.
+        host = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1").split("/")[0]
+        try:
+            self.device_ip = socket.gethostbyname(host)
+        except socket.gaierror:
+            self.device_ip = host
         self.bacnet = None
         self.loop = None
 
