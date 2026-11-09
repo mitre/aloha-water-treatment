@@ -11,7 +11,7 @@ import subprocess
 import time
 
 from pathlib import Path
-from aloha.constants import AlohaEnvVar, ImplementedProtocol, configure_logging
+from simulator.constants import AlohaEnvVar, ImplementedProtocol, configure_logging
 
 AppPath = Path(__file__).parent.absolute()  
 logger = logging.getLogger(__name__)
@@ -30,12 +30,12 @@ def run_local(env: dict[str:str]) -> None:
     logger.info("Starting PLC locally")
     # The -m flag is necessary to ensure package resolution
     plc = subprocess.Popen(
-        [sys.executable, "-m", "aloha.plc.PLC"], cwd=AppPath, env=env)
+        [sys.executable, "-m", "simulator.plc"], cwd=AppPath, env=env)
     time.sleep(2)
     logger.info("Starting HMI locally")
     # The -m flag is necessary to ensure package resolution
     try:
-        subprocess.run([sys.executable, "-m", "aloha.hmi.HMI"],
+        subprocess.run([sys.executable, "-m", "simulator.hmi"],
                        cwd=AppPath, env=env)
     except KeyboardInterrupt:
         pass
@@ -57,7 +57,7 @@ def run_plc(env: dict[str:str]):
     protocol = env[AlohaEnvVar.protocol.value]
     logger.info(f"Starting up PLC for {protocol} at {run_ip}:{run_port}")
     # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "aloha.plc.PLC"],
+    subprocess.run([sys.executable, "-m", "simulator.plc"],
                    cwd=AppPath, env=env)
 
 
@@ -74,7 +74,7 @@ def run_hmi(env: dict[str:str]):
     logger.info(
         f"Starting up HMI for {protocol}, connecting to {run_ip}:{run_port}")
     # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "aloha.hmi.HMI"],
+    subprocess.run([sys.executable, "-m", "simulator.hmi"],
                    cwd=AppPath, env=env)
 
 
