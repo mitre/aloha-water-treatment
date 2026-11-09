@@ -233,6 +233,11 @@ def write() -> tuple[Response, int]:
         logging.error("Expected JSON POST to /write")
         return jsonify({"error": "Expected JSON"}), 400
 
+    # A valid JSON body that is not an object has no fields to read.
+    if not isinstance(request.json, dict):
+        logging.error("Expected a JSON object POST to /write")
+        return jsonify({"error": "Expected a JSON object"}), 400
+
     # Validate that the target control was provided.
     control = request.json.get('control')
     if control is None:
