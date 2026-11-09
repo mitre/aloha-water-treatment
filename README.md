@@ -196,4 +196,6 @@ For notes on adding another protocol, see [Adding a Protocol](docs/adding-protoc
 
 ## Acknowledgments
 
-Aloha was originally developed by Samir Boussarhane for a UH Manoa workshop. We encourage pull requests with improvements, new features, deployment notes, documentation, and tests.
+Aloha was originally developed by Samir Boussarhane for a UH Manoa workshop. It is intended to grow open source collaboration in OT. We encourage forks and pull requests with improvements, new features, deployment notes, documentation, and tests.
+
+© 2026 The MITRE Corporation. Approved for Public Release; Distribution Unlimited. Case Number 26-0170.
