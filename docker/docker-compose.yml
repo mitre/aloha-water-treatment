@@ -1,0 +1,146 @@
+name: aloha-water-treatment
+
+services:
+  aloha-plc:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    init: true
+    environment:
+      - ALOHA_RUNMODE=plc
+      - ALOHA_PROTOCOL=modbus
+      - ALOHA_IP=0.0.0.0
+      - ALOHA_PORT=5020
+    networks:
+      - ot-lab
+    ports:
+      - "5020:5020"
+      - "127.0.0.1:3001:3001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import socket; s=socket.create_connection(('localhost',5020),2); s.close()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  aloha-hmi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    init: true
+    environment:
+      - ALOHA_RUNMODE=hmi
+      - ALOHA_PROTOCOL=modbus
+      - ALOHA_IP=aloha-plc
+      - ALOHA_PORT=5020
+    networks:
+      - ot-lab
+    ports:
+      - "8090:8090"
+    depends_on:
+      aloha-plc:
+        condition: service_healthy
+
+  aloha-bacnet-plc:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    init: true
+    profiles:
+      - bacnet
+    environment:
+      - ALOHA_RUNMODE=plc
+      - ALOHA_PROTOCOL=bacnet
+      - ALOHA_IP=auto
+      - ALOHA_PORT=47808
+    networks:
+      - ot-lab
+
+  aloha-bacnet-hmi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    init: true
+    profiles:
+      - bacnet
+    environment:
+      - ALOHA_RUNMODE=hmi
+      - ALOHA_PROTOCOL=bacnet
+      - ALOHA_IP=aloha-bacnet-plc
+      - ALOHA_PORT=47808
+    networks:
+      - ot-lab
+    ports:
+      - "8091:8090"
+    depends_on:
+      - aloha-bacnet-plc
+
+  caldera:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.caldera
+    environment:
+      - SIM_HOST=aloha-plc
+      - FACT_SOURCE=plugins/modbus/data/sources/aloha-simulator-facts.yml
+      - FACT_TRAIT=modbus.server.ip
+    init: true
+    networks:
+      - ot-lab
+    depends_on:
+      aloha-plc:
+        condition: service_healthy
+    ports:
+      - "8888:8888"
+      - "8443:8443"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8888"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    init: true
+    platform: linux/amd64
+    networks:
+      - ot-lab
+    depends_on:
+      caldera:
+        condition: service_healthy
+    environment:
+      - CALDERA_SERVER=http://caldera:8888
+      - AGENT_GROUP=red
+
+  capture:
+    image: lscr.io/linuxserver/wireshark:4.6.6-r0-ls328
+    profiles:
+      - capture
+    network_mode: "service:aloha-plc"
+    depends_on:
+      - aloha-plc
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    shm_size: "1gb"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=Etc/UTC
+    volumes:
+      - wireshark-config:/config
+      - ./captures:/config/Desktop
+
+networks:
+  ot-lab:
+    driver: bridge
+
+volumes:
+  wireshark-config:

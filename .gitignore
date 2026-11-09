@@ -56,3 +56,7 @@ logs/
 
 # Local environment
 .env
+
+# Wireshark captures
+docker/captures/*
+!docker/captures/.gitkeep
