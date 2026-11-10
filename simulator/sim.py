@@ -38,7 +38,7 @@ class SimulationContext:
     PLC communication OT protocol being used.
 
     To use this, an OT protocol must implement the Pythonic Protocol class defined
-    in PLC.py and use those interfaces to synchronize its PLC state with a context object.
+    in plc.py and use those interfaces to synchronize its PLC state with a context object.
     """
     # Command, status, and alarm flags.
     estop     : bool  = False  # Emergency Stop       (True = Active,  False = Inactive)
