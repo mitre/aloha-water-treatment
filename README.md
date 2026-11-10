@@ -88,17 +88,28 @@ python runenv.py
 
 ### Docker
 
-The main compose example runs the Modbus PLC and HMI in separate containers on an internal network. The example under `docker/` also includes Caldera.
-
-You can stand up the default Modbus stack with:
+`docker/docker-compose.yml` runs the Modbus PLC and HMI, Caldera, and an agent on a shared network:
 ```bash
-docker compose -f docker-compose-example.yml up --build -d
+docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-BACnet/IP communicates over UDP port 47808. The server and the HMI both need that port, and two programs can't share one port on the same machine, so each runs in its own container and reaches the other over the network by IP. For BACnet:
+Caldera starts with the Aloha fact source and adversaries loaded.
+
+On a Linux arm64 host, register amd64 emulation first (`docker run --privileged --rm tonistiigi/binfmt --install amd64`) so the agent can run. Docker Desktop already does this.
+
+BACnet/IP communicates over UDP port 47808. The server and the HMI both need that port, and two programs can't share one port on the same machine, so each runs in its own container and reaches the other over the network by IP. The BACnet PLC uses `ALOHA_IP=auto` to bind to its container's address, and UDP 47808 isn't published to the host. To add the BACnet PLC and HMI (HMI on port 8091):
 ```bash
-docker compose -f docker-compose-bacnet.yml up --build -d
+docker compose -f docker/docker-compose.yml --profile bacnet up --build -d
 ```
+
+### Packet Capture
+
+An optional Wireshark container shares the Modbus PLC's network, so it sees the HMI polling and the Modbus traffic from the Caldera agent:
+```bash
+docker compose -f docker/docker-compose.yml --profile capture up -d capture
+```
+
+Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`.
 
 ## Caldera OT Integration
 
@@ -122,7 +133,7 @@ Restart Caldera after copying so it picks up the new files.
 
 ### Scenarios
 
-Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network; in Docker the PLC and HMI run as separate containers (see `docker-compose-bacnet.yml`).
+Each scenario can be run through Modbus or BACnet. The scenario docs list the protocol-specific operation and facts to use. BACnet scenarios assume the BACnet PLC is reachable on the BACnet network; in Docker the PLC and HMI run as separate containers (see the `bacnet` profile in `docker/docker-compose.yml`).
 
 | Adversary | Scenario | Description |
 |---|---|---|

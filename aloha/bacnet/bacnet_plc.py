@@ -7,6 +7,7 @@ import asyncio
 import logging
 import signal
 import os
+import socket
 import BAC0
 
 from typing import Any
@@ -36,6 +37,45 @@ BAC_OEalarm  : str = 'operatorErrorAlarm'
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+def resolve_bacnet_address(address: str) -> str:
+    """
+    Resolve "auto" to this host's primary IP and subnet mask.
+
+    Containers get their IP at runtime, so "auto" (or "auto/<prefix>") binds the
+    BACnet stack to the primary interface. Any other address is returned as is.
+
+    Args:
+        address: The configured BACnet address.
+
+    Returns:
+        The address as given, or "ip/prefix" for "auto".
+    """
+    if address.split("/")[0] != "auto":
+        return address
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        if "/" in address:
+            return f"{ip}/{address.split('/')[1]}"
+        try:
+            import fcntl
+            import struct
+            for _, name in socket.if_nameindex():
+                req = struct.pack("256s", name.encode()[:15])
+                try:
+                    if socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, req)[20:24]) == ip:
+                        mask = fcntl.ioctl(s.fileno(), 0x891B, req)[20:24]
+                        return f"{ip}/{bin(int.from_bytes(mask, 'big')).count('1')}"
+                except OSError:
+                    continue
+        except (ImportError, OSError):
+            pass
+        return f"{ip}/24"
+    finally:
+        s.close()
+
+
 class BacnetPLCInterface(PLCProtocolInterface):
     """
     BACnet-backed PLC implementation for the water treatment simulation.
@@ -49,7 +89,7 @@ class BacnetPLCInterface(PLCProtocolInterface):
 
     # BACnet network and device configuration.
     BACNET_DEVICE_ID: int = 1001
-    BACNET_IP: str  = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1/24")
+    BACNET_IP: str  = resolve_bacnet_address(os.getenv(AlohaEnvVar.ip.value, "127.0.0.1/24"))
     BACNET_PORT: int = int(os.getenv(AlohaEnvVar.port.value, 47808))
 
     # BACnet runtime objects initialized during startup.
