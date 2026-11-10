@@ -95,8 +95,6 @@ docker compose -f docker/docker-compose.yml up --build -d
 
 Caldera starts with the Aloha fact source and adversaries loaded.
 
-On a Linux arm64 host, register amd64 emulation first (`docker run --privileged --rm tonistiigi/binfmt --install amd64`) so the agent can run. Docker Desktop already does this.
-
 BACnet/IP communicates over UDP port 47808. The server and the HMI both need that port, and two programs can't share one port on the same machine, so each runs in its own container and reaches the other over the network by IP. The BACnet PLC uses `ALOHA_IP=auto` to bind to its container's address, and UDP 47808 isn't published to the host. To add the BACnet PLC and HMI (HMI on port 8091):
 ```bash
 docker compose -f docker/docker-compose.yml --profile bacnet up --build -d

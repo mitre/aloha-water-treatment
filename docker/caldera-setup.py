@@ -1,4 +1,4 @@
-"""Prepare a stock Caldera checkout for the lab.
+"""Prepare a Caldera checkout.
 
 usage: python caldera-setup.py <plugin> [<plugin> ...]
 """
@@ -29,7 +29,7 @@ with open("plugins/manx/app/c_session.py", "w") as f:
 
 # Caldera only calls enable() on plugins listed in the config, and enable() is
 # what sets data_dir so the plugin's abilities load. Drop atomic and training:
-# this lab only needs the OT plugins, and atomic's enable() falls back to a live
+# only the OT plugins are needed, and atomic's enable() falls back to a live
 # git clone of redcanaryco/atomic-red-team when its submodule data isn't present
 # in the image, which can block server startup for several minutes.
 PATH = "conf/default.yml"
@@ -42,7 +42,7 @@ with open(PATH, "w") as f:
 
 # The OT abilities ship as repeatable, so the atomic planner hands the first
 # step out again on every beacon and an adversary profile never reaches step
-# two. Clear it for the plugins this lab loads.
+# two. Clear it for the plugins loaded here.
 for plugin in PLUGINS:
     for path in glob.glob(f"plugins/{plugin}/data/abilities/*/*.yml"):
         src = open(path).read()
@@ -51,8 +51,8 @@ for plugin in PLUGINS:
             with open(path, "w") as f:
                 f.write(patched)
 
-# Agents beacon every 30-60s by default, which leaves a five step profile
-# running for minutes.
+# Agents beacon every 30-60s by default, which leaves a profile running for
+# minutes.
 PATH = "conf/agents.yml"
 with open(PATH) as f:
     config = yaml.safe_load(f)
