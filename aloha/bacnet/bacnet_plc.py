@@ -213,6 +213,17 @@ class BacnetPLCInterface(PLCProtocolInterface):
         low_level_alarm.add_objects_to_application(self.bacnet)
         operator_error_alarm.add_objects_to_application(self.bacnet)
 
+        # bacpypes3 adds a network-port object whose HostNPort is unset, and it
+        # raises on every ReadPropertyMultiple for all properties. Drop it so
+        # EPICS reads return the plant's own points instead of an error.
+        try:
+            app = self.bacnet.this_application.app
+            for obj in list(app.iter_objects()):
+                if "network-port" in str(getattr(obj, "objectIdentifier", "")):
+                    app.delete_object(obj)
+        except Exception as e:
+            logger.warning(f"Could not remove the network-port object: {e}")
+
         # Store direct references to the created BACnet objects so the control
         # loop can read and write them by logical name.
         self.bacnet_objects = {
