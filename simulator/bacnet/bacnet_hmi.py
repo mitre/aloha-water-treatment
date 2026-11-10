@@ -12,9 +12,9 @@ import BAC0
 
 from typing import Any
 
-from aloha.constants import AlohaEnvVar
-from aloha.hmi.HMI import HMIClientInterface
-from aloha.plc.plc_simulation import SimulationContext
+from simulator.constants import AlohaEnvVar
+from simulator.hmi import HMIClientInterface
+from simulator.sim import SimulationContext
 
 logger: logging.Logger = logging.getLogger(__name__)
 

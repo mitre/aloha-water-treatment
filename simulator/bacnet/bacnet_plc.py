@@ -16,9 +16,9 @@ from BAC0.core.devices.local.factory import (
     analog_value, binary_value, binary_output
 )
 
-from aloha.constants import AlohaEnvVar
-from aloha.plc.plc_simulation import simulation_step, SimulationContext
-from aloha.plc.PLC import PLCProtocolInterface
+from simulator.constants import AlohaEnvVar
+from simulator.sim import simulation_step, SimulationContext
+from simulator.plc import PLCProtocolInterface
 
 # String keys used to store and access BACnet object references.
 BAC_level    : str = 'tankLevel'

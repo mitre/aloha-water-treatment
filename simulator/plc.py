@@ -10,8 +10,8 @@ import os
 
 from typing import Protocol, runtime_checkable
 
-from aloha.plc.plc_simulation import SimulationContext
-from aloha.constants import AlohaEnvVar, configure_logging
+from simulator.sim import SimulationContext
+from simulator.constants import AlohaEnvVar, configure_logging
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class PLCProtocolInterface(Protocol):
 
     In general, for any protocol, you should, in your run_server method loop should
     - call update_simulation_from_plc
-    - call simulation_step (in plc_simulation.py)
+    - call simulation_step (in sim.py)
     - call update_plc_from_simulation
     - sleep for 1 second
     """
@@ -96,9 +96,9 @@ def load_plc() -> PLCProtocolInterface:
     protocol_name = os.getenv(AlohaEnvVar.protocol.value)
     if not protocol_name: raise RuntimeError(f"{AlohaEnvVar.protocol.value} is not set")
 
-    # PLC modules match the naming convention 'aloha.<protocol>.<protocol._plc'
-    # e.g., "aloha.modbus.modbus_plc".
-    module_name = f"aloha.{protocol_name.lower()}.{protocol_name.lower()}_plc"
+    # PLC modules match the naming convention 'simulator.<protocol>.<protocol._plc'
+    # e.g., "simulator.modbus.modbus_plc".
+    module_name = f"simulator.{protocol_name.lower()}.{protocol_name.lower()}_plc"
     try:
         # Import the selected PLC implementation dynamically so the application
         # can support multiple protocol backends without hard-coding one here.

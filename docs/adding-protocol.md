@@ -2,8 +2,8 @@
 
 Aloha keeps the water treatment logic separate from the protocol used to expose it. A protocol implementation has two parts:
 
-* a PLC server under `aloha/<protocol>/<protocol>_plc.py`
-* an HMI client under `aloha/<protocol>/<protocol>_hmi.py`
+* a PLC server under `simulator/<protocol>/<protocol>_plc.py`
+* an HMI client under `simulator/<protocol>/<protocol>_hmi.py`
 
 The Modbus implementation is the synchronous example. The BACnet implementation is the asynchronous example.
 
@@ -11,22 +11,24 @@ The Modbus implementation is the synchronous example. The BACnet implementation 
 
 The protocol layer sits on top of shared code:
 
-* `aloha/constants.py` contains shared environment and protocol names
-* `aloha/plc/` contains the plant simulation and PLC interface
-* `aloha/hmi/` contains the Flask frontend and HMI client interface
+* `simulator/constants.py` contains shared environment and protocol names
+* `simulator/sim.py` contains the plant simulation
+* `simulator/plc.py` contains the PLC interface
+* `simulator/hmi.py` contains the Flask frontend and HMI client interface
+* `simulator/ui/` contains the frontend templates and static assets
 
 ## File Layout
 
 For a new protocol named `foo`, add:
 
 ```text
-aloha/foo/
-aloha/foo/__init__.py
-aloha/foo/foo_plc.py
-aloha/foo/foo_hmi.py
+simulator/foo/
+simulator/foo/__init__.py
+simulator/foo/foo_plc.py
+simulator/foo/foo_hmi.py
 ```
 
-Then add the protocol name to `ImplementedProtocol` in `aloha/constants.py`:
+Then add the protocol name to `ImplementedProtocol` in `simulator/constants.py`:
 
 ```python
 class ImplementedProtocol(StrEnum):
@@ -35,11 +37,11 @@ class ImplementedProtocol(StrEnum):
     FOO = "foo"
 ```
 
-The launcher uses that value to import `aloha.foo.foo_plc` and `aloha.foo.foo_hmi`.
+The launcher uses that value to import `simulator.foo.foo_plc` and `simulator.foo.foo_hmi`.
 
 ## PLC Side
 
-The PLC module needs a `create_plc()` function that returns an object matching `PLCProtocolInterface` from `aloha/plc/PLC.py`.
+The PLC module needs a `create_plc()` function that returns an object matching `PLCProtocolInterface` from `simulator/plc.py`.
 
 At a high level, the PLC should:
 
@@ -54,8 +56,8 @@ Minimal shape:
 ```python
 import time
 
-from aloha.plc.PLC import PLCProtocolInterface
-from aloha.plc.plc_simulation import SimulationContext, simulation_step
+from simulator.plc import PLCProtocolInterface
+from simulator.sim import SimulationContext, simulation_step
 
 
 class FooPLCInterface(PLCProtocolInterface):
@@ -88,7 +90,7 @@ def create_plc() -> PLCProtocolInterface:
 
 ## HMI Side
 
-The HMI module needs a `create_hmi_client()` function that returns an object matching `HMIClientInterface` from `aloha/hmi/HMI.py`.
+The HMI module needs a `create_hmi_client()` function that returns an object matching `HMIClientInterface` from `simulator/hmi.py`.
 
 The HMI client should:
 
@@ -106,8 +108,8 @@ The generic HMI interface handles command validation and routing. As long as tho
 Minimal shape:
 
 ```python
-from aloha.hmi.HMI import HMIClientInterface
-from aloha.plc.plc_simulation import SimulationContext
+from simulator.hmi import HMIClientInterface
+from simulator.sim import SimulationContext
 
 
 class FooClient(HMIClientInterface):
@@ -144,7 +146,7 @@ def create_hmi_client() -> HMIClientInterface:
 
 ## Simulation Context
 
-The shared plant state lives in `aloha/plc/plc_simulation.py`. Protocol code should translate between its own objects and `SimulationContext`, then let `simulation_step()` handle the plant behavior.
+The shared plant state lives in `simulator/sim.py`. Protocol code should translate between its own objects and `SimulationContext`, then let `simulation_step()` handle the plant behavior.
 
 Command and status values:
 
