@@ -71,14 +71,19 @@ class HMIClientInterface(Protocol):
                     return jsonify({"error": "Flow rates are auto-controlled in auto mode"}), 400
 
             # Dispatch the command to the matching protocol-specific setter.
-            if   command == HMIControl.estop:    self.set_estop(value)
-            elif command == HMIControl.inflow:   self.set_inflow(value)
-            elif command == HMIControl.outflow:  self.set_outflow(value)
-            elif command == HMIControl.pswitch:  self.set_pumpSwitch(value)
-            elif command == HMIControl.manualop: self.set_manualMode(value)
+            if   command == HMIControl.estop:    written = self.set_estop(value)
+            elif command == HMIControl.inflow:   written = self.set_inflow(value)
+            elif command == HMIControl.outflow:  written = self.set_outflow(value)
+            elif command == HMIControl.pswitch:  written = self.set_pumpSwitch(value)
+            elif command == HMIControl.manualop: written = self.set_manualMode(value)
             else:
                 logger.error(f"Unknown control {command}")
                 return jsonify({"error": "Unknown control"}), 400
+
+            # A client that reports the write failed must not be reported as sent.
+            if written is False:
+                logger.error(f"Device did not accept {command.value}={value}")
+                return jsonify({"error": "The device did not accept the write"}), 502
 
             logger.info("Command sent")
             return jsonify({"success": "Command sent"}), 200
@@ -232,6 +237,11 @@ def write() -> tuple[Response, int]:
     if not request.is_json:
         logging.error("Expected JSON POST to /write")
         return jsonify({"error": "Expected JSON"}), 400
+
+    # A valid JSON body that is not an object has no fields to read.
+    if not isinstance(request.json, dict):
+        logging.error("Expected a JSON object POST to /write")
+        return jsonify({"error": "Expected a JSON object"}), 400
 
     # Validate that the target control was provided.
     control = request.json.get('control')
