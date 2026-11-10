@@ -3,10 +3,10 @@ import threading
 import time
 import os
 
-import aloha.modbus.modbus_plc as plc
-from aloha.constants import AlohaEnvVar
-from aloha.hmi.HMI import HMIClientInterface
-from aloha.plc.plc_simulation import SimulationContext
+import simulator.modbus.modbus_plc as plc
+from simulator.constants import AlohaEnvVar
+from simulator.hmi import HMIClientInterface
+from simulator.sim import SimulationContext
 
 
 from pymodbus.client import ModbusTcpClient

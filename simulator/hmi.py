@@ -12,8 +12,8 @@ from enum import StrEnum
 from flask import Flask, render_template, request, jsonify, Response
 from typing import Protocol, runtime_checkable
 
-from aloha.constants import configure_logging, AlohaEnvVar
-from aloha.plc.plc_simulation import SimulationContext, TANK_MAX
+from simulator.constants import configure_logging, AlohaEnvVar
+from simulator.sim import SimulationContext, TANK_MAX
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -156,9 +156,9 @@ def load_hmi_interface() -> None:
     protocol_name = os.getenv(AlohaEnvVar.protocol.value)
     if not protocol_name: raise RuntimeError(f"{AlohaEnvVar.protocol.value} is not set")
 
-    # HMI client modules follow the naming pattern "aloha.<protocol>.<protocol>_hmi".
-    # e.g., aloha.modbus.modbus_hmi
-    module_name = f"aloha.{protocol_name.lower()}.{protocol_name.lower()}_hmi"
+    # HMI client modules follow the naming pattern "simulator.<protocol>.<protocol>_hmi".
+    # e.g., simulator.modbus.modbus_hmi
+    module_name = f"simulator.{protocol_name.lower()}.{protocol_name.lower()}_hmi"
     try:
         # Import the configured HMI client module dynamically so the web layer
         # remains protocol-agnostic.
@@ -189,7 +189,7 @@ def load_hmi_interface() -> None:
 FLASK_HOST = "0.0.0.0"
 FLASK_PORT = 8090
 
-app: Flask = Flask(__name__)
+app: Flask = Flask(__name__, template_folder="ui/templates", static_folder="ui/static")
 
 @app.route('/')
 def index():

@@ -13,7 +13,7 @@ import time
 from dotenv import load_dotenv
 from pathlib import Path
 
-from aloha.constants import AlohaEnvVar, ImplementedProtocol, configure_logging
+from simulator.constants import AlohaEnvVar, ImplementedProtocol, configure_logging
 
 # The root path that this codebase exists at. May need modification for docker
 AppPath = Path(__file__).parent.absolute()  
@@ -63,12 +63,12 @@ def run_local() -> None:
     logger.info("Starting PLC locally")
     # The -m flag is necessary to ensure package resolution
     plc = subprocess.Popen(
-        [sys.executable, "-m", "aloha.plc.PLC"], cwd=AppPath, env=env)
+        [sys.executable, "-m", "simulator.plc"], cwd=AppPath, env=env)
     time.sleep(2)
     logger.info("Starting HMI locally")
     try:
         # The -m flag is necessary to ensure package resolution
-        subprocess.run([sys.executable, "-m", "aloha.hmi.HMI"],
+        subprocess.run([sys.executable, "-m", "simulator.hmi"],
                        cwd=AppPath, env=env)
     except KeyboardInterrupt:
         pass
@@ -88,7 +88,7 @@ def run_plc():
     env = os.environ.copy()
     logger.info(f"Starting up PLC for {protocol} at {run_ip}:{run_port}")
     # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "aloha.plc.PLC"],
+    subprocess.run([sys.executable, "-m", "simulator.plc"],
                    cwd=AppPath, env=env)
 
 
@@ -103,7 +103,7 @@ def run_hmi():
     logger.info(
         f"Starting up HMI for {protocol}, connecting to {run_ip}:{run_port}")
     # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "aloha.hmi.HMI"],
+    subprocess.run([sys.executable, "-m", "simulator.hmi"],
                    cwd=AppPath, env=env)
 
 

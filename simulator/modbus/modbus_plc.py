@@ -14,8 +14,8 @@ from pymodbus.server import StartTcpServer
 from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusDeviceContext
 from pymodbus import ModbusDeviceIdentification
 
-from aloha.plc.PLC import PLCProtocolInterface
-from aloha.plc.plc_simulation import simulation_step, SimulationContext
+from simulator.plc import PLCProtocolInterface
+from simulator.sim import simulation_step, SimulationContext
 
 
 

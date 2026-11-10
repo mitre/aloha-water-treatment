@@ -203,6 +203,11 @@ The BACnet PLC exposes the following objects (Device ID 1001):
 
 For notes on adding another protocol, see [Adding a Protocol](docs/adding-protocol.md).
 
+Run the unit tests:
+```bash
+python -m unittest discover -s tests
+```
+
 ## Acknowledgments
 
 Aloha was originally developed by Samir Boussarhane for a UH Manoa workshop. It is intended to grow open source collaboration in OT. We encourage forks and pull requests with improvements, new features, deployment notes, documentation, and tests.
