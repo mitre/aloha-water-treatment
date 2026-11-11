@@ -208,6 +208,23 @@ Run the unit tests:
 python -m unittest discover -s tests
 ```
 
+## Other Simulators
+
+MITRE provides other open-source simulators for testing the Caldera for OT plugins
+without physical hardware.
+
+### [Grid Watch](https://github.com/mitre/grid-watch)
+
+Grid Watch is a simulated electrical grid outstation that mimics the behavior of a real-world DNP3 device.
+
+### [HVACSim](https://github.com/mitre/hvac-sim)
+
+HVACSim is a simulated HVAC control system that mimics the behavior of a real-world BACnet device.
+
+### [Wildcat Dam](https://github.com/mitre/wildcatdam)
+
+Wildcat Dam is a simulated dam controller that mimics the behavior of a real-world Modbus device.
+
 ## Acknowledgments
 
 Aloha was originally developed by Samir Boussarhane for a UH Manoa workshop. It is intended to grow open source collaboration in OT. We encourage forks and pull requests with improvements, new features, deployment notes, documentation, and tests.
