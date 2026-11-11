@@ -35,11 +35,8 @@ class BACnetClient(HMIClientInterface):
         """
         # Read the target BACnet device from configuration. BAC0's write parser
         # only accepts a numeric address, so resolve a hostname to its IP.
-        host = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1").split("/")[0]
-        try:
-            self.device_ip = socket.gethostbyname(host)
-        except socket.gaierror:
-            self.device_ip = host
+        self.host = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1").split("/")[0]
+        self._resolve_device()
         self.bacnet = None
         self.loop = None
 
@@ -49,6 +46,15 @@ class BACnetClient(HMIClientInterface):
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.hmi_update_loop, daemon=True)
         self.thread.start()
+
+    def _resolve_device(self):
+        """
+        Look up the BACnet PLC's current IP from its hostname.
+        """
+        try:
+            self.device_ip = socket.gethostbyname(self.host)
+        except socket.gaierror:
+            self.device_ip = self.host
 
     def set_estop(self, value: bool) -> bool:
         """
@@ -156,6 +162,7 @@ class BACnetClient(HMIClientInterface):
                         await asyncio.sleep(5)
                         continue
 
+                self._resolve_device()
                 await self._read_all()
                 await asyncio.sleep(2)
 
