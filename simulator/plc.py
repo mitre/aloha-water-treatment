@@ -7,6 +7,7 @@ Generic PLC interface which new protocols must adhere to
 import importlib
 import logging
 import os
+import sys
 
 from typing import Protocol, runtime_checkable
 
@@ -26,7 +27,8 @@ class PLCProtocolInterface(Protocol):
 
     To implement a PLC interface, you must implement a class with the following:
     - setup_plc: Establish any variables needed to run the plant logic
-    - run_server: Establish a server that runs the simulation and that the HMI can use
+    - run_server: Establish a server that runs the simulation and that the HMI can use,
+      and return the exit status
     - handle_signal: Handle graceful shutdown of the server
     - update_simulation_from_plc: Update the context object with PLC values
     - update_plc_from_simulation: Update the PLC with values from the context object
@@ -49,9 +51,12 @@ class PLCProtocolInterface(Protocol):
         """
         ...
 
-    def run_server(self) -> None:
+    def run_server(self) -> int:
         """
         Start the protocol server and execute the main simulation loop.
+
+        Returns:
+            0 after a clean shutdown, 1 if the server could not start.
         """
         ...
 
@@ -104,16 +109,12 @@ def load_plc() -> PLCProtocolInterface:
         # can support multiple protocol backends without hard-coding one here.
         module = importlib.import_module(f"{module_name}")
     except ImportError as e:
-        msg = f"Could not load PLC module '{module_name}'"
-        logger.error(msg)
-        raise RuntimeError(msg) from e
+        raise RuntimeError(f"Could not load PLC module '{module_name}': {e}") from e
 
     try:
         # Each PLC module must provide a create_plc() factory function.
         create_plc = getattr(module, "create_plc")
     except AttributeError as e:
-        msg = f"Module '{module_name}' does not define a create_plc() function"
-        logger.error(msg)
         raise RuntimeError(f"Module '{module_name}' does not define a create_plc() function") from e
 
     plc = create_plc()
@@ -124,22 +125,25 @@ def load_plc() -> PLCProtocolInterface:
     #    raise TypeError(f"{module_name}.create_plc() does not return a PLCProtocolInterface")
     return plc
 
-def main() -> None:
+def main() -> int:
     """
     General startup
     Configure logging, load the PLC implementation, and start the server.
+
+    Returns:
+        The process exit status.
     """
     configure_logging()
     try:
         plc = load_plc()
     except RuntimeError as e:
         # Startup cannot continue without a valid PLC implementation.
-        logger.critical(f"Unable to load PLC module, exiting")
-        exit(1)
+        logger.error(e)
+        return 1
 
     # Initialize the PLC before entering the server loop.
     plc.setup_plc()
-    plc.run_server()
+    return plc.run_server()
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

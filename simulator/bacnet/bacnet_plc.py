@@ -106,17 +106,18 @@ class BacnetPLCInterface(PLCProtocolInterface):
         """
         pass
 
-    def run_server(self) -> None:
+    def run_server(self) -> int:
         """
         Create an event loop and run the asynchronous BACnet server.
+
+        Returns:
+            0 after a clean shutdown, 1 if the BACnet stack could not start.
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         try:
-            loop.run_until_complete(self.run_server_async())
-        except KeyboardInterrupt:
-            logging.warning("User interrupted program execution")
+            return loop.run_until_complete(self.run_server_async())
         finally:
             # Cancel any remaining tasks so the loop can shut down cleanly.
             pending = asyncio.all_tasks(loop)
@@ -283,9 +284,12 @@ class BacnetPLCInterface(PLCProtocolInterface):
 
 
 
-    async def run_server_async(self) -> None:
+    async def run_server_async(self) -> int:
         """
         Start the BACnet server and execute the asynchronous simulation loop.
+
+        Returns:
+            0 after a clean shutdown, 1 if the BACnet stack could not start.
         """
         # Register signal handlers so the loop can stop cleanly.
         signal.signal(signal.SIGINT,  self.handle_signal)
@@ -302,10 +306,14 @@ class BacnetPLCInterface(PLCProtocolInterface):
             )
 
             await self.async_setup_plc()
+        except Exception as e:
+            logger.error(f"Could not start BACnet device {self.BACNET_DEVICE_ID} on {self.BACNET_IP} port {self.BACNET_PORT}: {e}")
+            return 1
 
-            logger.info(f"PLC running on BACnet device {self.BACNET_DEVICE_ID} at {self.BACNET_IP}")
-            logger.info("Water Treatment Plant Control System Ready")
+        logger.info(f"PLC running on BACnet device {self.BACNET_DEVICE_ID} at {self.BACNET_IP}")
+        logger.info("Water Treatment Plant Control System Ready")
 
+        try:
             while self.is_active:
                 try:
                     # Synchronize BACnet inputs into the simulation, execute
@@ -313,23 +321,15 @@ class BacnetPLCInterface(PLCProtocolInterface):
                     self.update_simulation_from_plc()
                     simulation_step(self.context)
                     self.update_plc_from_simulation()
-                    await asyncio.sleep(1)
-
                 except Exception as e:
                     logging.error(f"Error in control loop: {e}")
-                    await asyncio.sleep(1)
-
-            logger.info("Stopping BACnet server...")
-            self.bacnet.disconnect()
-        except asyncio.CancelledError:
-            logger.warning("BACnet PLC shutting down")
-        except Exception as e:
-            logger.error(f"System error: {e}")
-            if 'bacnet' in locals():
-                try:
-                    self.bacnet.disconnect()
-                except:
-                    pass
+                await asyncio.sleep(1)
+        finally:
+            try:
+                await self.bacnet._disconnect()
+            except Exception:
+                pass
+        return 0
 
     def update_simulation_from_plc(self) -> None:
         """

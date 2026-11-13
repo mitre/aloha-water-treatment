@@ -5,7 +5,7 @@ Aloha keeps the water treatment logic separate from the protocol used to expose 
 * a PLC server under `simulator/<protocol>/<protocol>_plc.py`
 * an HMI client under `simulator/<protocol>/<protocol>_hmi.py`
 
-The Modbus implementation is the synchronous example. The BACnet implementation is the asynchronous example.
+The Modbus and BACnet implementations are working examples of both parts.
 
 ## Source Tree
 
@@ -50,6 +50,7 @@ At a high level, the PLC should:
 * call `simulation_step(self.context)` once per tick
 * write updated simulation values back to the protocol objects
 * sleep about one second between ticks
+* return `1` from `run_server()` if the server cannot start, and `0` once it stops
 
 Minimal shape:
 
@@ -67,12 +68,13 @@ class FooPLCInterface(PLCProtocolInterface):
     def setup_plc(self) -> None:
         ...
 
-    def run_server(self) -> None:
+    def run_server(self) -> int:
         while self.is_active:
             self.update_simulation_from_plc()
             simulation_step(self.context)
             self.update_plc_from_simulation()
             time.sleep(1)
+        return 0
 
     def handle_signal(self, sig: int, frame: object | None) -> None:
         self.is_active = False

@@ -3,14 +3,12 @@ Aloha Water Treatment Plant Control Logic
 Modbus PLC implementation
 """
 
+import asyncio
 import logging
 import os
 import signal
-import time
 
-from threading import Thread, Event
-
-from pymodbus.server import StartTcpServer
+from pymodbus.server import ModbusTcpServer
 from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusDeviceContext
 from pymodbus import ModbusDeviceIdentification
 
@@ -71,7 +69,6 @@ class ModbusPLCInterface(PLCProtocolInterface):
     data blocks for registers and coils, and synchronizes PLC state with
     the simulation context on a periodic loop.
     """
-    server_started    : Event = Event()
     context           : SimulationContext = SimulationContext()
     is_active         : bool = True
 
@@ -156,37 +153,33 @@ class ModbusPLCInterface(PLCProtocolInterface):
         # Create the server context in single-device mode.
         self.modbus_context = ModbusServerContext(devices=self.device_context, single=True)
 
-    def run_server(self) -> None:
+    def run_server(self) -> int:
         """
         Start the Modbus TCP server and run the simulation update loop.
 
-        The Modbus server runs in a daemon thread while the main loop
-        repeatedly synchronizes PLC state with the simulation context.
+        Returns:
+            0 after a clean shutdown, 1 if the server could not start.
         """
-
-        self.setup_plc()
-
         # Register shutdown handlers so the loop can stop gracefully.
         signal.signal(signal.SIGINT,  self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
+        return asyncio.run(self.run_server_async())
 
-        # Start the Modbus TCP server in a background thread so the main
-        # thread can continue running the simulation loop.
-        server_thread = Thread(
-            target=StartTcpServer,
-            kwargs={
-                'context' : self.modbus_context,
-                'identity': self.device,
-                'address' : (self.MODBUS_HOST, self.MODBUS_PORT),
-            },
-            daemon=True
+    async def run_server_async(self) -> int:
+        """
+        Bind the Modbus TCP server, then synchronize PLC state with the
+        simulation context once per second until stopped.
+        """
+        server = ModbusTcpServer(
+            context       = self.modbus_context,
+            identity      = self.device,
+            address       = (self.MODBUS_HOST, self.MODBUS_PORT),
         )
-        # Allow the server a brief moment to initialize before signaling
-        # readiness to other parts of the application.
-        server_thread.start()
-        time.sleep(1)
-
-        self.server_started.set()
+        try:
+            await server.serve_forever(background=True)
+        except RuntimeError:
+            logger.error(f"Could not listen on {self.MODBUS_HOST}:{self.MODBUS_PORT}")
+            return 1
         logger.info(f"PLC running on port {self.MODBUS_PORT}")
 
         try:
@@ -200,9 +193,10 @@ class ModbusPLCInterface(PLCProtocolInterface):
                 except Exception as e:
                     logger.error(f"Error: {e}")
 
-                time.sleep(1)
-        except KeyboardInterrupt:
-            logger.info("\nStopped by keyboard interrupt")
+                await asyncio.sleep(1)
+        finally:
+            await server.shutdown()
+        return 0
 
     def handle_signal(self, sig: int, frame: object | None) -> None:
         """
