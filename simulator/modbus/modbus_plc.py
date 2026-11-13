@@ -3,16 +3,14 @@ Aloha Water Treatment Plant Control Logic
 Modbus PLC implementation
 """
 
+import asyncio
 import logging
-import os
 import signal
-import time
 
-from threading import Thread, Event
-
-from pymodbus.server import StartTcpServer
+from pymodbus.server import ModbusTcpServer
 from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusDeviceContext
 from pymodbus import ModbusDeviceIdentification
+from pymodbus.pdu import ModbusPDU
 
 from simulator.plc import PLCProtocolInterface
 from simulator.sim import simulation_step, SimulationContext
@@ -71,7 +69,6 @@ class ModbusPLCInterface(PLCProtocolInterface):
     data blocks for registers and coils, and synchronizes PLC state with
     the simulation context on a periodic loop.
     """
-    server_started    : Event = Event()
     context           : SimulationContext = SimulationContext()
     is_active         : bool = True
 
@@ -83,10 +80,23 @@ class ModbusPLCInterface(PLCProtocolInterface):
     device_context    : ModbusDeviceContext
     server_context    : ModbusServerContext
 
-    # Important variables
-    MODBUS_HOST = os.getenv("ALOHA_IP", "0.0.0.0")
-    MODBUS_PORT = int(os.getenv("ALOHA_PORT", "5020"))
     REGISTER_COUNT: int = 15
+
+    WRITE_REQUESTS = {
+        5:  "coil",
+        6:  "holding register",
+        15: "coils",
+        16: "holding registers",
+    }
+
+    def __init__(self, host: str, port: int) -> None:
+        """
+        Args:
+            host: The address the Modbus server binds to.
+            port: The TCP port the Modbus server listens on.
+        """
+        self.host = host
+        self.port = port
 
     def setup_plc(self) -> None:
         """
@@ -156,38 +166,36 @@ class ModbusPLCInterface(PLCProtocolInterface):
         # Create the server context in single-device mode.
         self.modbus_context = ModbusServerContext(devices=self.device_context, single=True)
 
-    def run_server(self) -> None:
+    def run_server(self) -> int:
         """
         Start the Modbus TCP server and run the simulation update loop.
 
-        The Modbus server runs in a daemon thread while the main loop
-        repeatedly synchronizes PLC state with the simulation context.
+        Returns:
+            0 after a clean shutdown, 1 if the server could not start.
         """
-
-        self.setup_plc()
-
         # Register shutdown handlers so the loop can stop gracefully.
         signal.signal(signal.SIGINT,  self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
+        return asyncio.run(self.run_server_async())
 
-        # Start the Modbus TCP server in a background thread so the main
-        # thread can continue running the simulation loop.
-        server_thread = Thread(
-            target=StartTcpServer,
-            kwargs={
-                'context' : self.modbus_context,
-                'identity': self.device,
-                'address' : (self.MODBUS_HOST, self.MODBUS_PORT),
-            },
-            daemon=True
+    async def run_server_async(self) -> int:
+        """
+        Bind the Modbus TCP server, then synchronize PLC state with the
+        simulation context once per second until stopped.
+        """
+        server = ModbusTcpServer(
+            context       = self.modbus_context,
+            identity      = self.device,
+            address       = (self.host, self.port),
+            trace_pdu     = self.trace_pdu,
+            trace_connect = self.trace_connect,
         )
-        # Allow the server a brief moment to initialize before signaling
-        # readiness to other parts of the application.
-        server_thread.start()
-        time.sleep(1)
-
-        self.server_started.set()
-        logger.info(f"PLC running on port {self.MODBUS_PORT}")
+        try:
+            await server.serve_forever(background=True)
+        except RuntimeError:
+            logger.error(f"Could not listen on {self.host}:{self.port}")
+            return 1
+        logger.info(f"PLC listening on {self.host}:{self.port}")
 
         try:
             while self.is_active:
@@ -200,9 +208,38 @@ class ModbusPLCInterface(PLCProtocolInterface):
                 except Exception as e:
                     logger.error(f"Error: {e}")
 
-                time.sleep(1)
-        except KeyboardInterrupt:
-            logger.info("\nStopped by keyboard interrupt")
+                await asyncio.sleep(1)
+        finally:
+            await server.shutdown()
+        logger.info("Stopped")
+        return 0
+
+    def trace_connect(self, connected: bool) -> None:
+        """
+        Log client connections and disconnections at debug level.
+        """
+        logger.debug("Client connected" if connected else "Client disconnected")
+
+    def trace_pdu(self, sending: bool, pdu: ModbusPDU) -> ModbusPDU:
+        """
+        Log every write request a client sends, so attacks show in the PLC log.
+        Other requests are logged at debug level.
+        """
+        if sending:
+            return pdu
+        kind = self.WRITE_REQUESTS.get(pdu.function_code)
+        if kind is None:
+            logger.debug(f"Client request: function {pdu.function_code}, address {pdu.address}, count {pdu.count}")
+            return pdu
+        values = ["ON" if bit else "OFF" for bit in pdu.bits] if pdu.function_code in (5, 15) else pdu.registers
+        last = pdu.address + len(values) - 1
+        where = f"{pdu.address}-{last}" if last > pdu.address else str(pdu.address)
+        text = ",".join(str(value) for value in values)
+        if isinstance(self.device_context.getValues(pdu.function_code, pdu.address, count=len(values)), list):
+            logger.info(f"Client wrote {kind} {where} = {text}")
+        else:
+            logger.info(f"Rejected client write to {kind} {where} = {text}: address out of range")
+        return pdu
 
     def handle_signal(self, sig: int, frame: object | None) -> None:
         """
@@ -212,7 +249,6 @@ class ModbusPLCInterface(PLCProtocolInterface):
             sig: The received signal number.
             frame: The current stack frame, if provided by the signal handler.
         """
-        logger.info("Shutting down...")
         self.is_active = False
 
 
@@ -305,8 +341,8 @@ class ModbusPLCInterface(PLCProtocolInterface):
 
 
 
-def create_plc() -> PLCProtocolInterface:
+def create_plc(host: str, port: int) -> PLCProtocolInterface:
     """
     Create and return a Modbus PLC interface implementation for the generic sim.
     """
-    return ModbusPLCInterface()
+    return ModbusPLCInterface(host, port)

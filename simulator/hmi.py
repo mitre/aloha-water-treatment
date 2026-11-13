@@ -6,13 +6,16 @@ Flask web application for monitoring and controlling the treatment plant
 
 import importlib
 import logging
-import os
+import signal
+import sys
 
 from enum import StrEnum
 from flask import Flask, render_template, request, jsonify, Response
 from typing import Protocol, runtime_checkable
+from werkzeug.serving import make_server
 
-from simulator.constants import configure_logging, AlohaEnvVar
+from simulator import SIM
+from simulator.config import configure_logging, parse_args
 from simulator.sim import SimulationContext, TANK_MAX
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -41,9 +44,16 @@ class HMIClientInterface(Protocol):
     simulation: SimulationContext = SimulationContext()
 
 
-    def initialize_client(self):
+    def initialize_client(self, host: str, port: int, client_cidr: int | None = None):
         """
         Initialize the HMI client and any protocol-specific resources.
+
+        Args:
+            host: The PLC's address.
+            port: The PLC's port.
+            client_cidr: Prefix length for the client's own address, for
+                protocols that bind one (BACnet), or None to read it from the
+                interface.
         """
         ...
 
@@ -137,63 +147,51 @@ class HMIClientInterface(Protocol):
 
 interface: HMIClientInterface
 
-def load_hmi_interface() -> None:
+def load_hmi_interface(protocol: str) -> None:
     """
-    Load and instantiate the configured HMI client implementation.
+    Load and instantiate the HMI client implementation for a protocol.
 
-    The implementation module is derived from the configured protocol value and
-    is expected to define a create_hmi_client() factory function.
+    The implementation module is derived from the protocol and is expected to
+    define a create_hmi_client() factory function.
 
-    Returns:
-        The configured HMI client interface type as declared by the function
-        signature.
+    Args:
+        protocol: The protocol name, e.g. "modbus".
 
     Raises:
-        RuntimeError: If the protocol is missing, the module cannot be imported,
-            or the required factory function is not defined.
+        RuntimeError: If the module cannot be imported, or the required factory
+            function is not defined.
     """
-    # Read the configured protocol name from the environment.
-    protocol_name = os.getenv(AlohaEnvVar.protocol.value)
-    if not protocol_name: raise RuntimeError(f"{AlohaEnvVar.protocol.value} is not set")
-
     # HMI client modules follow the naming pattern "simulator.<protocol>.<protocol>_hmi".
     # e.g., simulator.modbus.modbus_hmi
-    module_name = f"simulator.{protocol_name.lower()}.{protocol_name.lower()}_hmi"
+    module_name = f"simulator.{protocol.lower()}.{protocol.lower()}_hmi"
     try:
         # Import the configured HMI client module dynamically so the web layer
         # remains protocol-agnostic.
-        module = importlib.import_module(f"{module_name}")
+        module = importlib.import_module(module_name)
     except ImportError as e:
-        msg = f"Could not load HMI client module '{module_name}'"
-        logger.error(msg)
-        raise RuntimeError(msg) from e
+        raise RuntimeError(f"Could not load HMI client module '{module_name}': {e}") from e
 
     try:
         # Each HMI module must provide a create_hmi_client() factory.
         create_hmi_client = getattr(module, "create_hmi_client")
     except AttributeError as e:
-        msg = f"Module '{module_name}' does not define a create_hmi_client() function"
-        logger.error(msg)
         raise RuntimeError(f"Module '{module_name}' does not define a create_hmi_client() function") from e
 
     global interface
     interface = create_hmi_client()
 
-    # Runtime interface validation is intentionally disabled here.
-    #if not isinstance(plc, PLCProtocolInterface):
-    #    raise TypeError(f"{module_name}.create_plc() does not return a PLCProtocolInterface")
-
 
 
 # Flask network configuration for the HMI frontend.
-FLASK_HOST = "0.0.0.0"
-FLASK_PORT = 8090
+WEB_HOST = "0.0.0.0"
+WEB_PORT = 8090
 
 app: Flask = Flask(__name__, template_folder="ui/templates", static_folder="ui/static")
+app.config["TITLE"] = "Aloha"
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', title=app.config["TITLE"])
 
 
 @app.route('/update', methods=['GET'])
@@ -235,24 +233,24 @@ def write() -> tuple[Response, int]:
     """
     # Require JSON input for all write requests.
     if not request.is_json:
-        logging.error("Expected JSON POST to /write")
+        logger.error("Expected JSON POST to /write")
         return jsonify({"error": "Expected JSON"}), 400
 
     # A valid JSON body that is not an object has no fields to read.
     if not isinstance(request.json, dict):
-        logging.error("Expected a JSON object POST to /write")
+        logger.error("Expected a JSON object POST to /write")
         return jsonify({"error": "Expected a JSON object"}), 400
 
     # Validate that the target control was provided.
     control = request.json.get('control')
     if control is None:
-        logging.error(f"Request is missing control field")
+        logger.error("Request is missing control field")
         return jsonify({"error": "Missing control parameter"}), 400
 
     # Validate that the new value was provided.
     value = request.json.get('value')
     if value is None:
-        logging.error(f"Request is missing value parameter")
+        logger.error("Request is missing value parameter")
         return jsonify({"error": "Missing value parameter"}), 400
 
     try:
@@ -263,23 +261,73 @@ def write() -> tuple[Response, int]:
     except ValueError as e:
         pass  # StrEnum raises ValueError when an invalid control string is provided.
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return jsonify({"error": str(e)}), 500
 
     # If we get to this point, it's an invalid control, since we return
-    logging.error(f"Invalid control {control}")
+    logger.error(f"Invalid control {control}")
     return jsonify({"error": "Invalid control"}), 400
 
 
-if __name__ == '__main__':
-    configure_logging()
+def add_hmi_arguments(parser) -> None:
+    """
+    Add the HMI's own flags to the shared command line.
+    """
+    parser.add_argument("--web-port", type=int, default=WEB_PORT, metavar="PORT",
+                        help=f"web HMI port (default: {WEB_PORT})")
+    parser.add_argument("--client-cidr", type=int, metavar="PREFIX",
+                        help="prefix length for the HMI's own BACnet address; match the PLC's subnet "
+                             "(default: read from the interface, else 24)")
+
+
+def main(argv: list[str] | None = None) -> int:
+    """
+    Parse the command line, connect to the PLC and serve the web HMI.
+
+    Returns:
+        The process exit status.
+    """
+    args = parse_args(
+        prog="python -m simulator.hmi",
+        description=f"{SIM['name']} HMI: polls the PLC over Modbus or BACnet and serves the web page.",
+        host_help="PLC to poll (default: ALOHA_IP in the config, 127.0.0.1)",
+        port_help="PLC port (default: ALOHA_PORT in the config, 5020 for Modbus, 47808 for BACnet)",
+        default_host="127.0.0.1",
+        extra=add_hmi_arguments,
+        argv=argv)
+    configure_logging(args.debug)
+    if not args.debug:
+        logging.getLogger("werkzeug").setLevel(logging.WARNING)
+
     try:
-        load_hmi_interface()
+        load_hmi_interface(args.protocol)
     except RuntimeError as e:
-    # Startup cannot continue without a valid HMI client implementation.
-        logger.critical(f"Unable to load HMI interface, exiting")
-        exit(1)
+        # Startup cannot continue without a valid HMI client implementation.
+        logger.error(e)
+        return 1
+
+    try:
+        server = make_server(WEB_HOST, args.web_port, app, threaded=True)
+    except (OSError, SystemExit):
+        logger.error(f"Could not serve the web HMI on {WEB_HOST}:{args.web_port}")
+        return 1
+
+    app.config["TITLE"] = f"{SIM['protocols'][args.protocol]['name']} - Aloha"
 
     # Initialize the protocol-specific client before starting the web server.
-    interface.initialize_client()
-    app.run(host=FLASK_HOST, port=FLASK_PORT)
+    logger.info(f"Polling PLC at {args.host}:{args.port}")
+    interface.initialize_client(args.host, args.port, args.client_cidr)
+    logger.info(f"Web HMI at http://{WEB_HOST}:{args.web_port}")
+
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    server.server_close()
+    logger.info("Stopped")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
