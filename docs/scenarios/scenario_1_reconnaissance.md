@@ -7,7 +7,7 @@
 | **Tactic** | Discovery, Collection |
 | **Techniques** | [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/); BACnet variant also [T0846 - Remote System Discovery](https://attack.mitre.org/techniques/T0846/), [T0888 - Remote System Information Discovery](https://attack.mitre.org/techniques/T0888/) |
 | **Adversary** | Aloha Modbus Reconnaissance (`docs/adversaries/modbus-reconnaissance.yml`), Aloha BACnet Reconnaissance (`docs/adversaries/bacnet-reconnaissance.yml`) |
-| **Fact source** | Aloha Water Treatment Facts (`docs/sources/aloha-simulator-facts.yml`) |
+| **Fact source** | Aloha Modbus Reconnaissance Facts (`docs/sources/aloha-modbus-reconnaissance.yml`), Aloha BACnet Reconnaissance Facts (`docs/sources/aloha-bacnet-reconnaissance.yml`) |
 
 ## Description
 

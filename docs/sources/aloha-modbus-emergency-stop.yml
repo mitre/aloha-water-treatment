@@ -1,0 +1,30 @@
+---
+
+id: 9ba11c07-485b-4e12-8e34-3622a001e0c6
+name: Aloha Modbus Emergency Stop Facts
+facts:
+
+# CONNECTION
+
+- trait: modbus.server.ip      # IP address of the Modbus PLC (set by the lab)
+  value: 127.0.0.1
+- trait: modbus.server.port    # TCP port for the Modbus PLC
+  value: 5020
+
+# WRITE (emergency stop coil)
+
+- trait: modbus.write_coil.start    # EmergencyStop coil
+  value: 0
+- trait: modbus.write_coil.value    # Coil value to write
+  value: 'ON'
+
+# READ (verify)
+
+- trait: modbus.read_coil.start     # First coil to read
+  value: 0
+- trait: modbus.read_coil.count     # Number of coils to read
+  value: 9
+- trait: modbus.read_holding.start  # First holding register to read
+  value: 0
+- trait: modbus.read_holding.count  # Number of holding registers to read
+  value: 10

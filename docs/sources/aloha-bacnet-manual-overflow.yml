@@ -1,0 +1,34 @@
+---
+
+id: 3887b9b8-eff4-4455-9a6d-c6c67adbdc32
+name: Aloha BACnet Manual Overflow Facts
+facts:
+
+# DEVICE
+
+- trait: bacnet.device.instance   # Aloha BACnet device instance
+  value: 1001
+
+# WRITE PROPERTY (turn the pump on)
+
+- trait: bacnet.obj.type       # PumpSwitch object type
+  value: binary-value
+- trait: bacnet.obj.instance   # PumpSwitch instance
+  value: 2
+- trait: bacnet.obj.property   # Present value
+  value: present-value
+- trait: bacnet.write.priority # Manual operator priority, the same as the HMI
+  value: 8
+- trait: bacnet.write.index    # Write entire property
+  value: -1
+- trait: bacnet.write.tag      # Enumerated, for binary values
+  value: 9
+- trait: bacnet.write.value    # Active (pump on)
+  value: 1
+
+# OBJECT COLLECTION (verify pump status)
+
+- trait: bacnet.object.type       # PumpStatus object type
+  value: binary-output
+- trait: bacnet.object.instance   # PumpStatus instance
+  value: 1

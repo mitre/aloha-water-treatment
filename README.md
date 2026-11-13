@@ -118,7 +118,7 @@ docker compose -f docker/docker-compose.yml up --build -d
 | Web HMI | http://localhost:8090 |
 | Modbus PLC | `localhost:5020` |
 
-All ports are published on `127.0.0.1` only. Caldera starts with the Aloha Water Treatment fact source and adversary profiles loaded.
+All ports are published on `127.0.0.1` only. Caldera starts with the Aloha Water Treatment fact sources and adversary profiles loaded.
 
 The image runs the PLC with `python -m simulator.plc` and ignores `ALOHA_RUNMODE`. To run the HMI from it, set the entrypoint to `python -m simulator.hmi`, as the compose file's HMI service does. The `ALOHA_IP`, `ALOHA_PORT` and `ALOHA_PROTOCOL` variables still set the flag defaults.
 
@@ -136,7 +136,7 @@ An optional Wireshark container shares the PLC's network, so it sees the HMI pol
 docker compose -f docker/docker-compose.yml --profile capture up -d capture
 ```
 
-Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`.
+Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`. If 3001 is taken, set `WIRESHARK_PORT` to another port.
 
 ## Modbus Map
 
@@ -210,13 +210,15 @@ For notes on adding another protocol, see [Adding a Protocol](docs/adding-protoc
 
 ## Caldera OT Integration
 
-This repo ships a fact source and adversary profiles for [MITRE Caldera™ for OT](https://github.com/mitre/caldera-ot) and its [Modbus](https://github.com/mitre/modbus) and [BACnet](https://github.com/mitre/bacnet) plugins. The Docker lab loads them for you. To use them with your own Caldera server, copy them into the plugin directories below, adjust the values for your network, and restart Caldera:
+This repo ships a fact source per scenario and adversary profiles for [MITRE Caldera™ for OT](https://github.com/mitre/caldera-ot) and its [Modbus](https://github.com/mitre/modbus) and [BACnet](https://github.com/mitre/bacnet) plugins. The Docker lab loads them for you. To use them with your own Caldera server, copy them into the plugin directories below, adjust the values for your network, and restart Caldera:
 
 | File | Destination |
 |---|---|
-| `docs/sources/aloha-simulator-facts.yml` | `plugins/modbus/data/sources/` |
+| `docs/sources/aloha-*.yml` | `plugins/modbus/data/sources/` |
 | `docs/adversaries/modbus-*.yml` | `plugins/modbus/data/adversaries/` |
 | `docs/adversaries/bacnet-*.yml` | `plugins/bacnet/data/adversaries/` |
+
+Each adversary has its own fact source, paired by name (for example `aloha-modbus-emergency-stop.yml` with the Aloha Modbus Emergency Stop profile). The source gives each of the profile's abilities one set of facts, so every step runs once. The exception is the BACnet Reconnaissance profile in the Docker lab, where Who-Is also finds the HMI (device `9101`), so the reads after it run once per device.
 
 ### Scenarios
 
