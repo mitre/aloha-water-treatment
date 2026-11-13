@@ -1,0 +1,34 @@
+---
+
+id: 8f258c7a-75a6-4de0-9fad-c23f1790e97b
+name: Aloha BACnet Emergency Stop Facts
+facts:
+
+# DEVICE
+
+- trait: bacnet.device.instance   # Aloha BACnet device instance
+  value: 1001
+
+# WRITE PROPERTY (set the emergency stop)
+
+- trait: bacnet.obj.type       # EmergencyStop object type
+  value: binary-value
+- trait: bacnet.obj.instance   # EmergencyStop instance
+  value: 1
+- trait: bacnet.obj.property   # Present value
+  value: present-value
+- trait: bacnet.write.priority # Manual operator priority, the same as the HMI
+  value: 8
+- trait: bacnet.write.index    # Write entire property
+  value: -1
+- trait: bacnet.write.tag      # Enumerated, for binary values
+  value: 9
+- trait: bacnet.write.value    # Active (emergency stop on)
+  value: 1
+
+# OBJECT COLLECTION (verify pump status)
+
+- trait: bacnet.object.type       # PumpStatus object type
+  value: binary-output
+- trait: bacnet.object.instance   # PumpStatus instance
+  value: 1

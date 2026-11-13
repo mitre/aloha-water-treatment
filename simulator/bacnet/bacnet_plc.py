@@ -133,12 +133,6 @@ class BacnetPLCInterface(PLCProtocolInterface):
         """
         Create BACnet objects and register them with the BACnet application.
         """
-        # Populate BACnet device metadata exposed to clients.
-        self.bacnet.this_application.objectName       = "AlohaWaterTreatment"
-        self.bacnet.this_application.vendorName       = "Aloha Water Treatment"
-        self.bacnet.this_application.modelName        = "ATC-100-BAC"
-        self.bacnet.this_application.firmwareRevision = "1.0.0"
-        self.bacnet.this_application.description      = "Water Treatment Plant Controller [BACNET]"
 
         # Create the analog BACnet objects used for tank level and flow rates.
         tank_level = analog_value(name="TankLevel",
@@ -294,7 +288,9 @@ class BacnetPLCInterface(PLCProtocolInterface):
             self.bacnet = BAC0.start(
                 ip      =address,
                 port    =self.port,
-                deviceId=self.BACNET_DEVICE_ID
+                deviceId=self.BACNET_DEVICE_ID,
+                localObjName="AlohaWaterTreatment",
+                modelName="ATC-100-BAC",
             )
 
             await self.async_setup_plc()

@@ -1,0 +1,23 @@
+---
+
+id: b3724036-b595-486a-897d-ea85da87e9f3
+name: Aloha Modbus Reconnaissance Facts
+facts:
+
+# CONNECTION
+
+- trait: modbus.server.ip      # IP address of the Modbus PLC (set by the lab)
+  value: 127.0.0.1
+- trait: modbus.server.port    # TCP port for the Modbus PLC
+  value: 5020
+
+# READ
+
+- trait: modbus.read_coil.start     # First coil to read
+  value: 0
+- trait: modbus.read_coil.count     # Number of coils to read
+  value: 9
+- trait: modbus.read_holding.start  # First holding register to read
+  value: 0
+- trait: modbus.read_holding.count  # Number of holding registers to read
+  value: 10

@@ -1,0 +1,34 @@
+---
+
+id: 3db275c7-2de6-45b1-9bac-5476f7442e54
+name: Aloha Modbus Manual Overflow Facts
+facts:
+
+# CONNECTION
+
+- trait: modbus.server.ip      # IP address of the Modbus PLC (set by the lab)
+  value: 127.0.0.1
+- trait: modbus.server.port    # TCP port for the Modbus PLC
+  value: 5020
+
+# WRITE (one batched coil write and one batched register write)
+
+- trait: modbus.write_coil.start      # First coil of the block: PumpSwitch (1)
+  value: 1
+- trait: modbus.write_coil.values     # Coils 1-5: PumpSwitch on, PLC-owned 2-4, InflowMode manual
+  value: '1,0,0,0,1'
+- trait: modbus.write_register.start  # First register of the block: InflowRate (6)
+  value: 6
+- trait: modbus.write_register.values # Registers 6-7: InflowRate 900, OutflowRate 50
+  value: '900,50'
+
+# READ (verify)
+
+- trait: modbus.read_coil.start     # First coil to read
+  value: 0
+- trait: modbus.read_coil.count     # Number of coils to read
+  value: 9
+- trait: modbus.read_holding.start  # First holding register to read
+  value: 0
+- trait: modbus.read_holding.count  # Number of holding registers to read
+  value: 10

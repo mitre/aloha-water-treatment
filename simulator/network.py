@@ -13,6 +13,9 @@ def primary_ip():
     try:
         s.connect(("10.255.255.255", 1))
         return s.getsockname()[0]
+    except OSError:
+        # No route (no default gateway): fall back to loopback.
+        return "127.0.0.1"
     finally:
         s.close()
 

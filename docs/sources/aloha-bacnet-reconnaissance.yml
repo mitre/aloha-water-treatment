@@ -1,0 +1,28 @@
+---
+
+id: 48477d74-5497-4618-beb9-d51380549f11
+name: Aloha BACnet Reconnaissance Facts
+facts:
+
+# DEVICE
+
+- trait: bacnet.device.instance   # Aloha BACnet device instance
+  value: 1001
+
+# READ PROPERTY (read the device object's object-list)
+
+- trait: bacnet.obj.type      # Device object
+  value: device
+- trait: bacnet.obj.instance  # Device object instance
+  value: 1001
+- trait: bacnet.obj.property  # 76 = object-list
+  value: 76
+- trait: bacnet.read.index    # -2 = whole array
+  value: -2
+
+# OBJECT COLLECTION (read one process point)
+
+- trait: bacnet.object.type       # TankLevel object type
+  value: analog-value
+- trait: bacnet.object.instance   # TankLevel instance
+  value: 1

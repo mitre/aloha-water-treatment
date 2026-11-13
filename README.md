@@ -136,7 +136,7 @@ An optional Wireshark container shares the PLC's network, so it sees the HMI pol
 docker compose -f docker/docker-compose.yml --profile capture up -d capture
 ```
 
-Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`.
+Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`. If 3001 is taken, set `WIRESHARK_PORT` to another port.
 
 ## Modbus Map
 
@@ -214,9 +214,11 @@ This repo ships a fact source and adversary profiles for [MITRE Caldera™ for O
 
 | File | Destination |
 |---|---|
-| `docs/sources/aloha-simulator-facts.yml` | `plugins/modbus/data/sources/` |
+| `docs/sources/aloha-*.yml` | `plugins/modbus/data/sources/` |
 | `docs/adversaries/modbus-*.yml` | `plugins/modbus/data/adversaries/` |
 | `docs/adversaries/bacnet-*.yml` | `plugins/bacnet/data/adversaries/` |
+
+Each adversary has its own fact source, paired by name (for example `aloha-modbus-emergency-stop.yml` with the Aloha Modbus Emergency Stop profile). The source gives each of the profile's abilities one set of facts, so every step runs once.
 
 ### Scenarios
 
