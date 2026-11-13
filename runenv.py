@@ -47,7 +47,7 @@ def identifyProtocol() -> ImplementedProtocol | None:
         EnvironmentError: If the configured protocol value is invalid.
     """
     try:
-        return ImplementedProtocol(os.getenv(AlohaEnvVar.protocol.value).lower())
+        return ImplementedProtocol((os.getenv(AlohaEnvVar.protocol.value) or "").lower())
     except ValueError as e:
         raise EnvironmentError() from e
 
@@ -88,8 +88,8 @@ def run_plc():
     env = os.environ.copy()
     logger.info(f"Starting up PLC for {protocol} at {run_ip}:{run_port}")
     # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "simulator.plc"],
-                   cwd=AppPath, env=env)
+    return subprocess.run([sys.executable, "-m", "simulator.plc"],
+                          cwd=AppPath, env=env).returncode
 
 
 def run_hmi():
@@ -103,8 +103,8 @@ def run_hmi():
     logger.info(
         f"Starting up HMI for {protocol}, connecting to {run_ip}:{run_port}")
     # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "simulator.hmi"],
-                   cwd=AppPath, env=env)
+    return subprocess.run([sys.executable, "-m", "simulator.hmi"],
+                          cwd=AppPath, env=env).returncode
 
 
 def main():
@@ -116,7 +116,7 @@ def main():
         protocol: ImplementedProtocol = identifyProtocol()
     except EnvironmentError as e:
         raise EnvironmentError(
-            f"Unrecognized protocol {protocol}. Must be one of [{', '.join([p.value for p in ImplementedProtocol])}]")
+            f"{AlohaEnvVar.protocol.value} must be one of [{', '.join([p.value for p in ImplementedProtocol])}]") from e
 
     # Validate the required network configuration before launching.
     check_environment(AlohaEnvVar.ip,
@@ -129,9 +129,9 @@ def main():
         case "local":
             run_local()
         case "plc":
-            run_plc()
+            return run_plc()
         case "hmi":
-            run_hmi()
+            return run_hmi()
         case _:
             raise EnvironmentError(
                 f"Unrecognized {AlohaEnvVar.runmode.value} variable value |{os.getenv(AlohaEnvVar.runmode.value)}|. Must be 'local', 'plc' or 'hmi'")
@@ -140,6 +140,6 @@ def main():
 # Allow this module to be run directly as the environment-aware launcher.
 if __name__ == "__main__":
     try:
-        main()
+        sys.exit(main())
     except KeyboardInterrupt:
         logger.warning("Keyboard interrupt detected, shutting down")

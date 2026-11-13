@@ -164,16 +164,12 @@ def load_hmi_interface() -> None:
         # remains protocol-agnostic.
         module = importlib.import_module(f"{module_name}")
     except ImportError as e:
-        msg = f"Could not load HMI client module '{module_name}'"
-        logger.error(msg)
-        raise RuntimeError(msg) from e
+        raise RuntimeError(f"Could not load HMI client module '{module_name}': {e}") from e
 
     try:
         # Each HMI module must provide a create_hmi_client() factory.
         create_hmi_client = getattr(module, "create_hmi_client")
     except AttributeError as e:
-        msg = f"Module '{module_name}' does not define a create_hmi_client() function"
-        logger.error(msg)
         raise RuntimeError(f"Module '{module_name}' does not define a create_hmi_client() function") from e
 
     global interface
@@ -277,7 +273,7 @@ if __name__ == '__main__':
         load_hmi_interface()
     except RuntimeError as e:
     # Startup cannot continue without a valid HMI client implementation.
-        logger.critical(f"Unable to load HMI interface, exiting")
+        logger.error(e)
         exit(1)
 
     # Initialize the protocol-specific client before starting the web server.

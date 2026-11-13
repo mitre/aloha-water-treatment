@@ -187,7 +187,7 @@ The BACnet PLC exposes the following objects (Device ID 1001):
 |----------|------|-------------|
 | 1 | EmergencyStop | Emergency stop button |
 | 2 | PumpSwitch | Main pump switch |
-| 3 | InflowMode | Inflow mode (False = Auto, True = Manual) |
+| 3 | ManualMode | Auto/manual mode (False = Auto, True = Manual) |
 
 ### Binary Outputs
 | Instance | Name | Description |
