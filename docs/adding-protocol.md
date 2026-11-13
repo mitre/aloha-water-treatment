@@ -11,7 +11,9 @@ The Modbus and BACnet implementations are working examples of both parts.
 
 The protocol layer sits on top of shared code:
 
-* `simulator/constants.py` contains shared environment and protocol names
+* `simulator/__init__.py` contains `SIM`, with each protocol's menu name, default port and default bind address
+* `simulator/config.py` contains the environment variable names, logging setup and the command line
+* `simulator/network.py` contains the address helpers the BACnet PLC and HMI use
 * `simulator/sim.py` contains the plant simulation
 * `simulator/plc.py` contains the PLC interface
 * `simulator/hmi.py` contains the Flask frontend and HMI client interface
@@ -28,52 +30,61 @@ simulator/foo/foo_plc.py
 simulator/foo/foo_hmi.py
 ```
 
-Then add the protocol name to `ImplementedProtocol` in `simulator/constants.py`:
+Then add it to `SIM["protocols"]` in `simulator/__init__.py`:
 
 ```python
-class ImplementedProtocol(StrEnum):
-    BACNET = "bacnet"
-    MODBUS = "modbus"
-    FOO = "foo"
+"foo": {"name": "Foo", "port": 1234, "bind": "0.0.0.0", "local": True},
 ```
 
-The launcher uses that value to import `simulator.foo.foo_plc` and `simulator.foo.foo_hmi`.
+`local` says whether the PLC and the HMI can share one host. `python -m simulator.plc --protocol foo` then imports `simulator.foo.foo_plc`, `python -m simulator.hmi --protocol foo` imports `simulator.foo.foo_hmi`, and `run.py` offers Foo in its protocol menu.
 
 ## PLC Side
 
-The PLC module needs a `create_plc()` function that returns an object matching `PLCProtocolInterface` from `simulator/plc.py`.
+The PLC module needs a `create_plc(host, port)` function that returns an object matching `PLCProtocolInterface` from `simulator/plc.py`.
 
 At a high level, the PLC should:
 
 * create protocol-specific objects or registers in `setup_plc()`
+* in `run_server()`, log `PLC listening on <host>:<port>` once the server is bound, or return `1` if it cannot start
 * read operator or client values into `self.context`
 * call `simulation_step(self.context)` once per tick
 * write updated simulation values back to the protocol objects
 * sleep about one second between ticks
-* return `1` from `run_server()` if the server cannot start, and `0` once it stops
+* on SIGINT or SIGTERM, stop the loop, log `Stopped` and return `0`
 
 Minimal shape:
 
 ```python
+import logging
 import time
 
 from simulator.plc import PLCProtocolInterface
 from simulator.sim import SimulationContext, simulation_step
 
 
+logger = logging.getLogger(__name__)
+
+
 class FooPLCInterface(PLCProtocolInterface):
     context: SimulationContext = SimulationContext()
     is_active: bool = True
+
+    def __init__(self, host: str, port: int) -> None:
+        self.host = host
+        self.port = port
 
     def setup_plc(self) -> None:
         ...
 
     def run_server(self) -> int:
+        ...
+        logger.info(f"PLC listening on {self.host}:{self.port}")
         while self.is_active:
             self.update_simulation_from_plc()
             simulation_step(self.context)
             self.update_plc_from_simulation()
             time.sleep(1)
+        logger.info("Stopped")
         return 0
 
     def handle_signal(self, sig: int, frame: object | None) -> None:
@@ -86,8 +97,8 @@ class FooPLCInterface(PLCProtocolInterface):
         ...
 
 
-def create_plc() -> PLCProtocolInterface:
-    return FooPLCInterface()
+def create_plc(host: str, port: int) -> PLCProtocolInterface:
+    return FooPLCInterface(host, port)
 ```
 
 ## HMI Side
@@ -96,9 +107,9 @@ The HMI module needs a `create_hmi_client()` function that returns an object mat
 
 The HMI client should:
 
-* connect to the protocol server in `initialize_client()`
+* connect to the PLC at the given host and port in `initialize_client(host, port, client_cidr)`; `client_cidr` is the prefix length for a protocol that binds its own client address, as BACnet does, and other protocols ignore it
 * keep a local `SimulationContext` updated for the web UI
-* implement the five command methods used by the frontend:
+* implement the five command methods used by the frontend, each returning `True` if the PLC accepted the write and `False` if it did not:
   * `set_estop`
   * `set_inflow`
   * `set_outflow`
@@ -117,7 +128,7 @@ from simulator.sim import SimulationContext
 class FooClient(HMIClientInterface):
     simulation: SimulationContext = SimulationContext()
 
-    def initialize_client(self):
+    def initialize_client(self, host: str, port: int, client_cidr: int | None = None):
         ...
 
     def hmi_update_loop(self):

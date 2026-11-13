@@ -4,79 +4,67 @@
 
 | Field | Value |
 |---|---|
-| **Tactic** | Collection, Discovery |
-| **Techniques** | [T0802 - Automated Collection](https://attack.mitre.org/techniques/T0802/), [T0846 - Remote System Discovery](https://attack.mitre.org/techniques/T0846/), [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/) |
-| **Target** | Aloha PLC over Modbus or BACnet |
-| **Impact** | None - read-only operations only |
+| **Tactic** | Discovery, Collection |
+| **Techniques** | [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/); BACnet variant also [T0846 - Remote System Discovery](https://attack.mitre.org/techniques/T0846/), [T0888 - Remote System Information Discovery](https://attack.mitre.org/techniques/T0888/) |
+| **Adversary** | Aloha Modbus Reconnaissance (`docs/adversaries/modbus-reconnaissance.yml`), Aloha BACnet Reconnaissance (`docs/adversaries/bacnet-reconnaissance.yml`) |
+| **Fact source** | Aloha Water Treatment Facts (`docs/sources/aloha-simulator-facts.yml`) |
 
-## Objective
+## Description
 
-Read Aloha process values and control points without issuing control commands.
-This gives a baseline view of tank level, pump state, valve state, alarm state,
-flow values, and control objects exposed by the PLC.
+The adversary reads the PLC's process values and control points without changing anything. The PLC answers any client without authentication, so the reads give a baseline of the tank level, flow rates, pump and valve state, operating mode and alarms before an attack.
 
-![Aloha HMI baseline state](../images/scenario-1-reconnaissance.png)
+![Aloha Water Treatment HMI reconnaissance state](../images/scenario-1-reconnaissance.png)
 
 ## Modbus Variant
 
-Load `docs/sources/aloha-simulator-facts.yml` as the fact source, then
-build an operation using the Modbus abilities below.
+### Facts Used
 
-### Fact Variables
-
-| Fact | Description | Type | Default |
-|------|-------------|------|---------|
+| Fact | Description | Type | Value |
+|---|---|---|---|
 | `modbus.server.ip` | IP address of the Modbus PLC | string | `127.0.0.1` |
-| `modbus.server.port` | TCP port for the Modbus PLC | int | `5020` |
+| `modbus.server.port` | TCP port of the Modbus PLC | int | `5020` |
 | `modbus.read_coil.start` | First coil to read | int | `0` |
 | `modbus.read_coil.count` | Number of coils to read | int | `9` |
 | `modbus.read_holding.start` | First holding register to read | int | `0` |
 | `modbus.read_holding.count` | Number of holding registers to read | int | `10` |
 
-### Caldera Operation
+### Steps
 
-| Step | Ability | Ability ID | Facts Used |
-|------|---------|------------|------------|
-| 1 | Modbus - Read Coils | `d80b9cd5-b1d8-482a-a745-71d74f9d0885` | `modbus.server.ip`, `modbus.server.port`, `modbus.read_coil.start`, `modbus.read_coil.count` |
-| 2 | Modbus - Read Holding Registers | `bc8961a2-7534-4b2a-bbc3-2456f58243be` | `modbus.server.ip`, `modbus.server.port`, `modbus.read_holding.start`, `modbus.read_holding.count` |
+Run the adversary with the fact source above, or add these abilities to an operation in this order:
+
+| # | Ability | ID | Facts |
+|---|---|---|---|
+| 1 | Modbus - Read Coils | `d80b9cd5-b1d8-482a-a745-71d74f9d0885` | read: `modbus.read_coil.start=0`, `modbus.read_coil.count=9` |
+| 2 | Modbus - Read Holding Registers | `bc8961a2-7534-4b2a-bbc3-2456f58243be` | read: `modbus.read_holding.start=0`, `modbus.read_holding.count=10` |
 
 ## BACnet Variant
 
-Load `docs/sources/aloha-simulator-facts.yml` as the fact source, then
-build an operation using the BACnet abilities below.
+### Facts Used
 
-### Fact Variables
+| Fact | Description | Type | Value |
+|---|---|---|---|
+| `bacnet.device.instance` | Device instance of the BACnet PLC | int | `1001` |
+| `bacnet.obj.type` | Object type for Read Property | string | `device` |
+| `bacnet.obj.instance` | Object instance for Read Property | int | `1001` |
+| `bacnet.obj.property` | Property for Read Property | int | `76` (object-list) |
+| `bacnet.read.index` | Array index for Read Property | int | `-2` (whole array) |
+| `bacnet.object.type` | Object type for Object Collection | string | `analog-value` |
+| `bacnet.object.instance` | Object instance for Object Collection | int | `1` (TankLevel) |
 
-| Fact | Description | Type | Default |
-|------|-------------|------|---------|
-| `bacnet.device.instance` | Aloha BACnet device instance | int | `1001` |
-| `bacnet.obj.type` | BACnet object type for direct reads | string | `device` |
-| `bacnet.obj.instance` | BACnet object instance for direct reads | int | `1001` |
-| `bacnet.obj.property` | BACnet property to read | int or string | `76` |
-| `bacnet.read.index` | BACnet array read index | int | `-2` |
-| `bacnet.object.type` | Object type for object collection | string | `analog-value` |
-| `bacnet.object.instance` | Object instance for object collection | int | `1` |
+### Steps
 
-### Caldera Operation
+Run the adversary with the fact source above, or add these abilities to an operation in this order:
 
-| Step | Ability | Ability ID | Facts Used |
-|------|---------|------------|------------|
-| 1 | BACnet Who-Is | `b93bd80e-3a70-11eb-adc1-0242ac120002` | Discover device instance `1001` |
-| 2 | BACnet Device Collection - Basic | `485e97e7-c352-432d-b8d3-fa8460e4fe49` | `bacnet.device.instance` |
-| 3 | BACnet Read Property | `47432648-5678-11eb-ae93-0242ac130002` | `bacnet.device.instance`, `bacnet.obj.type`, `bacnet.obj.instance`, `bacnet.obj.property`, `bacnet.read.index` |
-| 4 | BACnet Object Collection - Basic | `bd13ac81-b932-463d-95aa-a22aeefbc9ac` | `bacnet.device.instance`, `bacnet.object.type`, `bacnet.object.instance` |
+| # | Ability | ID | Facts |
+|---|---|---|---|
+| 1 | BACnet Who-Is | `b93bd80e-3a70-11eb-adc1-0242ac120002` | discover |
+| 2 | BACnet Device Collection - Basic | `485e97e7-c352-432d-b8d3-fa8460e4fe49` | device: `bacnet.device.instance=1001` |
+| 3 | BACnet Read Property | `47432648-5678-11eb-ae93-0242ac130002` | read: `bacnet.obj.type=device`, `bacnet.obj.instance=1001`, `bacnet.obj.property=76`, `bacnet.read.index=-2` |
+| 4 | BACnet Object Collection - Basic | `bd13ac81-b932-463d-95aa-a22aeefbc9ac` | read: `bacnet.object.type=analog-value`, `bacnet.object.instance=1` |
 
 ## Expected Observations
 
-- Modbus coils show emergency stop, pump switch, pump status, valve, mode, and alarm states.
-- Modbus holding registers show tank level, flow rates, mode, and overflow alarm.
-- BACnet discovery should return the Aloha device instance.
-- BACnet object collection should show analog values, binary values, and binary outputs from the README object list.
-- No process state should change because the scenario only reads values.
-
-## See Also
-
-- [Caldera for OT](https://github.com/mitre/caldera-ot)
-- [ATT&CK for ICS - T0802](https://attack.mitre.org/techniques/T0802/)
-- [ATT&CK for ICS - T0846](https://attack.mitre.org/techniques/T0846/)
-- [ATT&CK for ICS - T0861](https://attack.mitre.org/techniques/T0861/)
+- The PLC answers every read without authentication, and no process value changes.
+- Modbus: Read Coils returns coils 0-8 and Read Holding Registers returns registers 0-9, as listed in the README's Modbus map. On a freshly started PLC the pump switch is off, so every coil reads `OFF` and every register reads `0`.
+- BACnet: Who-Is lists device `1001`. Device Collection and Read Property list the device object and its 12 points: `analog-value` 1-3, `binary-value` 1-3 and `binary-output` 1-6.
+- BACnet: Object Collection returns `analog-value` 1 with object-name `TankLevel` and the current tank level as its present-value.

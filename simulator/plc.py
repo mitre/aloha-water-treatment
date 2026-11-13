@@ -6,13 +6,13 @@ Generic PLC interface which new protocols must adhere to
 
 import importlib
 import logging
-import os
 import sys
 
 from typing import Protocol, runtime_checkable
 
+from simulator import SIM
 from simulator.sim import SimulationContext
-from simulator.constants import AlohaEnvVar, configure_logging
+from simulator.config import configure_logging, parse_args
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -84,30 +84,32 @@ class PLCProtocolInterface(Protocol):
 
 
 
-def load_plc() -> PLCProtocolInterface:
+def load_plc(protocol: str, host: str, port: int) -> PLCProtocolInterface:
     """
-    Load and instantiate the PLC implementation selected by configuration.
+    Load and instantiate the PLC implementation for a protocol.
 
-    The module name is derived from the configured protocol value and is expected
-    to expose a create_plc() factory function that returns a PLC-compatible object.
+    The module name is derived from the protocol and is expected to expose a
+    create_plc(host, port) factory function that returns a PLC-compatible object.
+
+    Args:
+        protocol: The protocol name, e.g. "modbus".
+        host: The address the PLC binds to.
+        port: The port the PLC listens on.
 
     Returns:
-        A PLC implementation matching the configured protocol.
+        A PLC implementation matching the protocol.
 
     Raises:
-        RuntimeError: If the protocol is not configured, the module cannot be
-            imported, or the required create_plc() factory is missing.
+        RuntimeError: If the module cannot be imported, or the required
+            create_plc() factory is missing.
     """
-    protocol_name = os.getenv(AlohaEnvVar.protocol.value)
-    if not protocol_name: raise RuntimeError(f"{AlohaEnvVar.protocol.value} is not set")
-
-    # PLC modules match the naming convention 'simulator.<protocol>.<protocol._plc'
+    # PLC modules match the naming convention 'simulator.<protocol>.<protocol>_plc'
     # e.g., "simulator.modbus.modbus_plc".
-    module_name = f"simulator.{protocol_name.lower()}.{protocol_name.lower()}_plc"
+    module_name = f"simulator.{protocol.lower()}.{protocol.lower()}_plc"
     try:
         # Import the selected PLC implementation dynamically so the application
         # can support multiple protocol backends without hard-coding one here.
-        module = importlib.import_module(f"{module_name}")
+        module = importlib.import_module(module_name)
     except ImportError as e:
         raise RuntimeError(f"Could not load PLC module '{module_name}': {e}") from e
 
@@ -117,25 +119,26 @@ def load_plc() -> PLCProtocolInterface:
     except AttributeError as e:
         raise RuntimeError(f"Module '{module_name}' does not define a create_plc() function") from e
 
-    plc = create_plc()
+    return create_plc(host, port)
 
-    # Runtime protocol validation is intentionally left disabled.
-    # The returned object is assumed to satisfy PLCProtocolInterface.
-    #if not isinstance(plc, PLCProtocolInterface):
-    #    raise TypeError(f"{module_name}.create_plc() does not return a PLCProtocolInterface")
-    return plc
-
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """
     General startup
-    Configure logging, load the PLC implementation, and start the server.
+    Parse the command line, configure logging, load the PLC implementation,
+    and start the server.
 
     Returns:
         The process exit status.
     """
-    configure_logging()
+    args = parse_args(
+        prog="python -m simulator.plc",
+        description=f"{SIM['name']} PLC: a Modbus or BACnet device.",
+        host_help="address to bind (default: ALOHA_IP in the config, 0.0.0.0 for Modbus, auto for BACnet)",
+        port_help="Modbus or BACnet port (default: ALOHA_PORT in the config, 5020 for Modbus, 47808 for BACnet)",
+        argv=argv)
+    configure_logging(args.debug)
     try:
-        plc = load_plc()
+        plc = load_plc(args.protocol, args.host, args.port)
     except RuntimeError as e:
         # Startup cannot continue without a valid PLC implementation.
         logger.error(e)

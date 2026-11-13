@@ -39,19 +39,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY docker/caldera-setup.py /tmp/caldera-setup.py
 RUN python /tmp/caldera-setup.py modbus bacnet
 
-COPY docs/sources/aloha-simulator-facts.yml plugins/modbus/data/sources/
-COPY docs/adversaries/modbus-reconnaissance.yml \
-     docs/adversaries/modbus-manual-overflow.yml \
-     docs/adversaries/modbus-emergency-stop.yml \
-     plugins/modbus/data/adversaries/
-COPY docs/adversaries/bacnet-reconnaissance.yml \
-     docs/adversaries/bacnet-manual-overflow.yml \
-     docs/adversaries/bacnet-emergency-stop.yml \
-     plugins/bacnet/data/adversaries/
+COPY docs/sources/*.yml plugins/modbus/data/sources/
+COPY docs/adversaries/modbus-*.yml plugins/modbus/data/adversaries/
+COPY docs/adversaries/bacnet-*.yml plugins/bacnet/data/adversaries/
 
 COPY docker/caldera-entrypoint.sh /caldera-entrypoint.sh
 RUN chmod +x /caldera-entrypoint.sh
 
-EXPOSE 8888 8443
+EXPOSE 8888
 
 ENTRYPOINT ["/caldera-entrypoint.sh"]
