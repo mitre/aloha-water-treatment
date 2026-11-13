@@ -1,26 +1,23 @@
 name: aloha-water-treatment
 
 services:
-  aloha-plc:
+  plc:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     init: true
-    environment:
-      - ALOHA_RUNMODE=plc
-      - ALOHA_PROTOCOL=modbus
-      - ALOHA_IP=0.0.0.0
-      - ALOHA_PORT=5020
     networks:
       - ot-lab
+    # 3001 is the capture sidecar's web UI: the sidecar shares this container's
+    # network namespace, so its port is published here.
     ports:
-      - "5020:5020"
+      - "127.0.0.1:5020:5020"
       - "127.0.0.1:3001:3001"
     healthcheck:
       test:
         [
           "CMD",
-          "python3",
+          "python",
           "-c",
           "import socket; s=socket.create_connection(('localhost',5020),2); s.close()",
         ]
@@ -28,75 +25,83 @@ services:
       timeout: 3s
       retries: 5
 
-  aloha-hmi:
+  hmi:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     init: true
-    environment:
-      - ALOHA_RUNMODE=hmi
-      - ALOHA_PROTOCOL=modbus
-      - ALOHA_IP=aloha-plc
-      - ALOHA_PORT=5020
+    entrypoint: ["python", "-m", "simulator.hmi", "--protocol", "modbus", "--host", "plc", "--port", "5020", "--web-port", "8090"]
     networks:
       - ot-lab
     ports:
-      - "8090:8090"
+      - "127.0.0.1:8090:8090"
     depends_on:
-      aloha-plc:
+      plc:
         condition: service_healthy
 
-  aloha-bacnet-plc:
+  bacnet-plc:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     init: true
     profiles:
       - bacnet
-    environment:
-      - ALOHA_RUNMODE=plc
-      - ALOHA_PROTOCOL=bacnet
-      - ALOHA_IP=auto
-      - ALOHA_PORT=47808
+    # BACnet/IP uses UDP broadcast, so the PLC binds to its container interface
+    # (--host auto) rather than 0.0.0.0. Discovery broadcasts do not cross
+    # Docker's port publishing, so 47808 is not published to the host.
+    command: ["--protocol", "bacnet"]
     networks:
       - ot-lab
+    # BACnet has no TCP port to probe, so send a Who-Is and wait for the I-Am.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; from simulator.network import primary_ip; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.settimeout(2); s.sendto(bytes.fromhex('810a000801001008'), (primary_ip(), 47808)); s.recv(64)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  aloha-bacnet-hmi:
+  bacnet-hmi:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     init: true
     profiles:
       - bacnet
-    environment:
-      - ALOHA_RUNMODE=hmi
-      - ALOHA_PROTOCOL=bacnet
-      - ALOHA_IP=aloha-bacnet-plc
-      - ALOHA_PORT=47808
+    # Its own container is its own BACnet stack, so it reads and writes the PLC
+    # over the wire instead of touching the server's in-process objects.
+    entrypoint: ["python", "-m", "simulator.hmi", "--protocol", "bacnet", "--host", "bacnet-plc", "--port", "47808", "--web-port", "8090"]
     networks:
       - ot-lab
     ports:
-      - "8091:8090"
+      - "127.0.0.1:8091:8090"
     depends_on:
-      - aloha-bacnet-plc
+      bacnet-plc:
+        condition: service_healthy
 
   caldera:
     build:
       context: ..
       dockerfile: docker/Dockerfile.caldera
+    init: true
     environment:
-      - SIM_HOST=aloha-plc
+      - SIM_HOST=plc
       - FACT_SOURCE=plugins/modbus/data/sources/aloha-simulator-facts.yml
       - FACT_TRAIT=modbus.server.ip
-    init: true
+    depends_on:
+      plc:
+        condition: service_healthy
+      bacnet-plc:
+        condition: service_healthy
+        required: false
     networks:
       - ot-lab
-    depends_on:
-      aloha-plc:
-        condition: service_healthy
     ports:
-      - "8888:8888"
-      - "8443:8443"
+      - "127.0.0.1:8888:8888"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8888"]
       interval: 10s
@@ -109,6 +114,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.agent
     init: true
+    # The plugins' Linux payloads are amd64 glibc binaries with no arm64
+    # build, so the whole container runs as amd64 (emulated on arm64 hosts).
     platform: linux/amd64
     networks:
       - ot-lab
@@ -123,9 +130,9 @@ services:
     image: lscr.io/linuxserver/wireshark:4.6.6-r0-ls328
     profiles:
       - capture
-    network_mode: "service:aloha-plc"
+    network_mode: "service:plc"
     depends_on:
-      - aloha-plc
+      - plc
     cap_add:
       - NET_ADMIN
       - NET_RAW

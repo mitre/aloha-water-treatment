@@ -1,174 +1,156 @@
 #!/usr/bin/env python3
-"""
-Aloha Water Treatment Plant startup script
-Run the treatment plant with an interactive startup script
-"""
+"""Interactive launcher for the simulator's PLC and HMI."""
 
-import logging
-import sys
-import os
+import socket
 import subprocess
+import sys
 import time
-
 from pathlib import Path
-from simulator.constants import AlohaEnvVar, ImplementedProtocol, configure_logging
 
-AppPath = Path(__file__).parent.absolute()  
-logger = logging.getLogger(__name__)
+from simulator import SIM
 
-
-def run_local(env: dict[str:str]) -> None:
-    """
-    Start both the PLC and HMI locally using the provided environment.
-
-    The PLC is started as a background subprocess first, then the HMI is run in
-    the foreground. When the HMI exits, the PLC process is terminated.
-
-    Args:
-        env: Environment variables to pass to both subprocesses.
-    """
-    logger.info("Starting PLC locally")
-    # The -m flag is necessary to ensure package resolution
-    plc = subprocess.Popen(
-        [sys.executable, "-m", "simulator.plc"], cwd=AppPath, env=env)
-    time.sleep(2)
-    logger.info("Starting HMI locally")
-    # The -m flag is necessary to ensure package resolution
-    try:
-        subprocess.run([sys.executable, "-m", "simulator.hmi"],
-                       cwd=AppPath, env=env)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        # Ensure the PLC subprocess is stopped when the local session ends.
-        plc.terminate()
-        plc.wait()
+ROOT = Path(__file__).resolve().parent
+TIMEOUT = 10
 
 
-def run_plc(env: dict[str:str]):
-    """
-    Start only the PLC process using the current environment configuration.
-
-    Args:
-        env: Environment variables to pass to the PLC subprocess.
-    """
-    run_ip   = env[AlohaEnvVar.ip.value]
-    run_port = env[AlohaEnvVar.port.value]
-    protocol = env[AlohaEnvVar.protocol.value]
-    logger.info(f"Starting up PLC for {protocol} at {run_ip}:{run_port}")
-    # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "simulator.plc"],
-                   cwd=AppPath, env=env)
-
-
-def run_hmi(env: dict[str:str]):
-    """
-    Start only the HMI process using the current environment configuration.
-
-    Args:
-        env: Environment variables to pass to the HMI subprocess.
-    """
-    run_ip   = env[AlohaEnvVar.ip.value]
-    run_port = env[AlohaEnvVar.port.value]
-    protocol = env[AlohaEnvVar.protocol.value]
-    logger.info(
-        f"Starting up HMI for {protocol}, connecting to {run_ip}:{run_port}")
-    # The -m flag is necessary to ensure package resolution
-    subprocess.run([sys.executable, "-m", "simulator.hmi"],
-                   cwd=AppPath, env=env)
-
-
-def select_protocol(env: dict[str:str]) -> None:
-    """
-    Prompt the user to select the OT protocol and store it in the environment.
-
-    Args:
-        env: Mutable environment mapping updated with the selected protocol.
-    """
-    options = {str(i): protocol for i, protocol in enumerate(ImplementedProtocol)}
-    options_str = "\n".join([f"{i}. {protocol.name}" for i, protocol in enumerate(ImplementedProtocol)])
-    print( f"Aloha Water Treatment Simulator\n\nProtocol:\n{options_str}" )
-    while True: 
-        protocol_choice = input("\n Select protocol: ").strip()
-        if protocol_choice in options:
-            env[AlohaEnvVar.protocol.value] = options[protocol_choice]
-            return
-        print(f"Unrecognized choice {protocol_choice}")
-
-
-def select_runmode(env: dict[str:str]) -> None:
-    """
-    Prompt the user to select the deployment mode and store it in the environment.
-
-    Args:
-        env: Mutable environment mapping updated with the selected run mode.
-    """
-    options = {"1": "local", "2": "plc", "3": "hmi"}
-    print("\nDeployment:\n1. Local (HMI+PLC)\n2. Distributed (PLC)\n3. Distributed (HMI)")
+def choose(title, options):
+    """Print a numbered menu and return the key of the chosen option."""
+    print(f"\n{title}:")
+    for number, (_, label) in enumerate(options, 1):
+        print(f"{number}. {label}")
     while True:
-        runmode_choice = input("\n Select runmode: ").strip()
-        if runmode_choice in options:
-            env[AlohaEnvVar.runmode.value] = options[runmode_choice]
-            return
-        print(f"Unrecognized choice {runmode_choice}")
-    
-
-def select_host(env: dict[str:str]) -> None:
-    """
-    Prompt the user for the PLC host address and store it in the environment.
-
-    Args:
-        env: Mutable environment mapping updated with the selected host.
-    """
-    host_address = input("\nIP to run PLC on [127.0.0.1]: ").strip() or "127.0.0.1"
-    env[AlohaEnvVar.ip.value] = host_address
+        answer = input(f"Select [1-{len(options)}]: ").strip()
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1][0]
+        print(f"'{answer}' is not one of the options")
 
 
-def select_port(env: dict[str:str]) -> None:
-    """
-    Prompt the user for the PLC port and store it in the environment.
+def ask(prompt, default):
+    return input(f"{prompt} [{default}]: ").strip() or str(default)
 
-    Args:
-        env: Mutable environment mapping updated with the selected port.
-    """
-    while True: 
-        host_port = input("Port to run PLC on [>0]: ").strip()
-        try:
-            if int(host_port) >= 0:
-                env[AlohaEnvVar.port.value] = host_port
-                return
-        except (ValueError, AssertionError):
-            print(f"'{host_port}' is not a positive integer")
+
+def ask_port(default):
+    while True:
+        answer = ask("PLC port", default)
+        if answer.isdigit() and 0 < int(answer) < 65536:
+            return answer
+        print(f"'{answer}' is not a port number (1-65535)")
+
+
+def module(name, *args):
+    return [sys.executable, "-m", name, *args]
+
+
+def stop(process):
+    """Terminate a process, killing it if it does not exit in time."""
+    process.terminate()
+    try:
+        return process.wait(TIMEOUT)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        return process.wait()
+
+
+def settle(process):
+    """Give a process that also received Ctrl+C time to exit on its own."""
+    try:
+        return process.wait(TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return stop(process)
+
+
+def foreground(command):
+    process = subprocess.Popen(command, cwd=ROOT)
+    try:
+        return process.wait()
+    except KeyboardInterrupt:
+        settle(process)
+        raise
+
+
+def accepts(host, port):
+    address = "127.0.0.1" if host == "0.0.0.0" else host
+    try:
+        socket.create_connection((address, int(port)), timeout=1).close()
+        return True
+    except OSError:
+        return False
+
+
+def wait_for_plc(plc, host, port):
+    """Wait until the PLC accepts connections. Returns False if it exited."""
+    deadline = time.monotonic() + TIMEOUT
+    while time.monotonic() < deadline:
+        if plc.poll() is not None:
+            return False
+        if accepts(host, port):
+            return True
+        time.sleep(0.2)
+    return plc.poll() is None
+
+
+def run_local(plc_command, hmi_command, host, port):
+    if accepts(host, port):
+        print(f"Port {port} on {host} is already in use", file=sys.stderr)
+        return 1
+    plc = subprocess.Popen(plc_command, cwd=ROOT, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    try:
+        if not wait_for_plc(plc, host, port):
+            print(f"PLC exited with status {plc.returncode}", file=sys.stderr)
+            return plc.returncode or 1
+        return foreground(hmi_command)
+    except KeyboardInterrupt:
+        settle(plc)
+        raise
+    finally:
+        if plc.poll() is None:
+            stop(plc)
 
 
 def main():
-    """
-    Collect runtime configuration from the user and launch using the selected mode.
-    """
-    # Start from the current process environment and extend it with user input.
-    env = os.environ.copy()
-    select_protocol(env)
-    select_runmode(env)
-    select_host(env)
-    select_port(env)
+    print(f"{SIM['name']} Simulator")
 
-    configure_logging()
+    protocols = SIM["protocols"]
+    key = next(iter(protocols))
+    protocol_args = []
+    if len(protocols) > 1:
+        key = choose("Protocol", [(k, p["name"]) for k, p in protocols.items()])
+        protocol_args = ["--protocol", key]
+    protocol = protocols[key]
 
-    # Launch the component(s) selected by the configured run mode.
-    match env[AlohaEnvVar.runmode.value]:
-        case "local":
-            run_local(env)
-        case "plc":
-            run_plc(env)
-        case "hmi":
-            run_hmi(env)
-        case _:
-            raise EnvironmentError(
-                f"Unrecognized value |{os.getenv(AlohaEnvVar.runmode.value)}| for runmode. Must be 'local', 'plc' or 'hmi'")
+    modes = [("local", "Local (PLC + HMI)")] if protocol["local"] else []
+    modes += [("plc", "PLC only"), ("hmi", "HMI only")]
+    if SIM["test_client"]:
+        modes.append(("client", "Test client"))
+    mode = choose("Deployment", modes)
+
+    print()
+    host = ask("PLC host", protocol["bind"] if mode == "plc" else "127.0.0.1")
+    port = ask_port(protocol["port"])
+    hmi_args = []
+    if mode in ("local", "hmi") and SIM["web_optional"]:
+        if input("Web HMI? [y/N]: ").strip().lower() in ("y", "yes"):
+            hmi_args.append("--web")
+
+    target = ["--host", host, "--port", port]
+    plc_command = module("simulator.plc", *target, *protocol_args)
+    hmi_command = module("simulator.hmi", *target, *protocol_args, *hmi_args)
+
+    if mode == "local":
+        return run_local(plc_command, hmi_command, host, port)
+    if mode == "plc":
+        return foreground(plc_command)
+    if mode == "hmi":
+        return foreground(hmi_command)
+    return foreground(module(SIM["test_client"], *target))
 
 
 if __name__ == "__main__":
     try:
-        main()
+        sys.exit(main())
     except KeyboardInterrupt:
-        logging.warning("Keyboard interrupt detected, shutting down simulation")
+        print()
+        sys.exit(0)
+    except EOFError:
+        print()
+        sys.exit(1)

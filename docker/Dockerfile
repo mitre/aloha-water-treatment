@@ -1,12 +1,9 @@
-FROM python:3.13-alpine
-LABEL authors="MITRE"
-
+FROM python:3.12-slim
 WORKDIR /app
-
-COPY requirements.txt requirements.txt
-COPY runenv.py run.py
+ENV PYTHONUNBUFFERED=1
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 COPY simulator/ simulator/
-
-RUN pip3 install --break-system-packages --no-cache-dir -r /app/requirements.txt; chmod +x /app/run.py
-
-ENTRYPOINT ["python3", "/app/run.py"]
+COPY .env.example .
+EXPOSE 5020 47808/udp 8090
+ENTRYPOINT ["python", "-m", "simulator.plc"]

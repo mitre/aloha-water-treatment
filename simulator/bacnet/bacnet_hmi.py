@@ -6,17 +6,23 @@ Flask web application for monitoring and controlling the treatment plant via BAC
 import asyncio
 import logging
 import threading
-import os
 import socket
 import BAC0
 
 from typing import Any
 
-from simulator.constants import AlohaEnvVar
+import simulator.bacnet.bacnet_plc as plc
 from simulator.hmi import HMIClientInterface
+from simulator.network import primary_ip, primary_prefix
 from simulator.sim import SimulationContext
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+WRITE_PRIORITY = 8
+
+CLIENT_DEVICE_ID = 9101
+
+POLL_INTERVAL = 1
 
 
 class BACnetClient(HMIClientInterface):
@@ -28,19 +34,32 @@ class BACnetClient(HMIClientInterface):
     to refresh displayed process state.
     """
     simulation: SimulationContext = SimulationContext()
+    bacnet = None
 
-    def initialize_client(self):
+    def initialize_client(self, host: str, port: int, client_cidr: int | None = None):
         """
         Initialize the BACnet client state and start the background update loop.
+
+        Args:
+            host: The BACnet PLC's address or hostname.
+            port: The BACnet PLC's UDP port.
+            client_cidr: Prefix length for the client's own BACnet address, or
+                None to read it from the interface.
         """
-        # Read the target BACnet device from configuration. BAC0's write parser
-        # only accepts a numeric address, so resolve a hostname to its IP.
-        self.host = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1").split("/")[0]
+        # BAC0's write parser only accepts a numeric address, so resolve a
+        # hostname to its IP.
+        self.host = host.split("/")[0]
+        self.port = port
+        ip = primary_ip()
+        self.client_ip = f"{ip}/{client_cidr if client_cidr is not None else primary_prefix(ip)}"
         self._resolve_device()
         self.bacnet = None
         self.loop = None
 
-        BAC0.log_level('silence')
+        if not logging.getLogger().isEnabledFor(logging.DEBUG):
+            BAC0.log_level('silence')
+            logging.getLogger('bacpypes3').setLevel(logging.CRITICAL)
+        logging.getLogger("BAC0_Root").propagate = False
 
         # Start a background thread that owns the async BACnet polling loop.
         self.lock = threading.Lock()
@@ -52,48 +71,44 @@ class BACnetClient(HMIClientInterface):
         Look up the BACnet PLC's current IP from its hostname.
         """
         try:
-            self.device_ip = socket.gethostbyname(self.host)
+            ip = socket.gethostbyname(self.host)
         except socket.gaierror:
-            self.device_ip = self.host
+            ip = self.host
+        self.device_ip = ip if self.port == 47808 else f"{ip}:{self.port}"
 
     def set_estop(self, value: bool) -> bool:
         """
         Set the emergency stop bit to the given value
         """
-        return self._write_to_server(obj_type   ='binaryValue',
-                                  instance   =1,
-                                  write_value='active' if value else 'inactive')
+        return self._write_to_server(*plc.OBJ_ESTOP,
+                                     write_value='active' if value else 'inactive')
 
     def set_inflow(self, value: float) -> bool:
         """
         Write the inflow rate to the BACnet server.
         """
-        return self._write_to_server(obj_type   ='analogValue',
-                                     instance   =2,
+        return self._write_to_server(*plc.OBJ_INFLOW,
                                      write_value=int(value))
 
     def set_outflow(self, value: float) -> bool:
         """
         Write the outflow rate to the BACnet server.
         """
-        return self._write_to_server(obj_type   ='analogValue',
-                                     instance   =3,
+        return self._write_to_server(*plc.OBJ_OUTFLOW,
                                      write_value=int(value))
 
     def set_pumpSwitch(self, value: bool) -> bool:
         """
         Set the pump switch bit to the given value.
         """
-        return self._write_to_server(obj_type   ='binaryValue',
-                                     instance   =2,
+        return self._write_to_server(*plc.OBJ_SWITCH,
                                      write_value='active' if value else 'inactive')
 
     def set_manualMode(self, value: bool) -> bool:
         """
         Set the manual mode bit to the given value
         """
-        return self._write_to_server(obj_type   ='binaryValue',
-                                     instance   =3,
+        return self._write_to_server(*plc.OBJ_MANUAL,
                                      write_value='active' if value else 'inactive')
 
     def _write_to_server(self, obj_type: str, instance: int, write_value: Any):
@@ -110,7 +125,7 @@ class BACnetClient(HMIClientInterface):
             )
             return future.result(timeout=5.0)
 
-    async def _write_value_wrapper(self, obj_type: str, instance: int, prop: str, value: Any, priority=5):
+    async def _write_value_wrapper(self, obj_type: str, instance: int, prop: str, value: Any, priority=WRITE_PRIORITY):
         """
         Execute a BACnet write command for a specific object property.
 
@@ -156,7 +171,7 @@ class BACnetClient(HMIClientInterface):
                     try:
                         # Connect lazily so the loop can retry if the BACnet
                         # server is not yet available.
-                        self.bacnet = BAC0.connect()
+                        self.bacnet = BAC0.lite(ip=self.client_ip, deviceId=CLIENT_DEVICE_ID, ping=False)
                         await asyncio.sleep(2)
                     except Exception as e:
                         await asyncio.sleep(5)
@@ -164,11 +179,11 @@ class BACnetClient(HMIClientInterface):
 
                 self._resolve_device()
                 await self._read_all()
-                await asyncio.sleep(2)
+                await asyncio.sleep(POLL_INTERVAL)
 
             except Exception as e:
                 logger.error(f"Error in BACnet cycle: {e}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(POLL_INTERVAL)
 
 
     async def _read_all(self):
@@ -200,18 +215,18 @@ class BACnetClient(HMIClientInterface):
             # Read all required process, command, status, and alarm values in
             # parallel to reduce total polling latency.
             tasks = [
-                _read_value('analogValue',  1, 'presentValue'), # simulation.level
-                _read_value('analogValue',  2, 'presentValue'), # simulation.in_flow
-                _read_value('analogValue',  3, 'presentValue'), # simulation.out_flow
-                _read_value('binaryValue',  1, 'presentValue'), # simulation.estop
-                _read_value('binaryValue',  2, 'presentValue'), # simulation.pswitch
-                _read_value('binaryValue',  3, 'presentValue'), # simulation.manual_op
-                _read_value('binaryOutput', 1, 'presentValue'), # simulation.pstatus
-                _read_value('binaryOutput', 2, 'presentValue'), # simulation.in_valve
-                _read_value('binaryOutput', 3, 'presentValue'), # simulation.out_valve
-                _read_value('binaryOutput', 4, 'presentValue'), # simulation.of_alarm
-                _read_value('binaryOutput', 5, 'presentValue'), # simulation.ll_alarm
-                _read_value('binaryOutput', 6, 'presentValue'), # simulation.oe_alarm
+                _read_value(*plc.OBJ_LEVEL, 'presentValue'),    # simulation.level
+                _read_value(*plc.OBJ_INFLOW, 'presentValue'),   # simulation.in_flow
+                _read_value(*plc.OBJ_OUTFLOW, 'presentValue'),  # simulation.out_flow
+                _read_value(*plc.OBJ_ESTOP, 'presentValue'),    # simulation.estop
+                _read_value(*plc.OBJ_SWITCH, 'presentValue'),   # simulation.pswitch
+                _read_value(*plc.OBJ_MANUAL, 'presentValue'),   # simulation.manual_op
+                _read_value(*plc.OBJ_PUMP, 'presentValue'),     # simulation.pstatus
+                _read_value(*plc.OBJ_INVALVE, 'presentValue'),  # simulation.in_valve
+                _read_value(*plc.OBJ_OUTVALVE, 'presentValue'), # simulation.out_valve
+                _read_value(*plc.OBJ_OFALARM, 'presentValue'),  # simulation.of_alarm
+                _read_value(*plc.OBJ_LLALARM, 'presentValue'),  # simulation.ll_alarm
+                _read_value(*plc.OBJ_OEALARM, 'presentValue'),  # simulation.oe_alarm
             ]
 
             # Convert the returned BACnet values into the local simulation model.

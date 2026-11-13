@@ -1,10 +1,13 @@
+"""
+Aloha Water Treatment Plant HMI
+Modbus client for the web HMI
+"""
+
 import logging
 import threading
 import time
-import os
 
 import simulator.modbus.modbus_plc as plc
-from simulator.constants import AlohaEnvVar
 from simulator.hmi import HMIClientInterface
 from simulator.sim import SimulationContext
 
@@ -25,66 +28,78 @@ class ModbusClient(HMIClientInterface):
     """
     # Local cached simulation state used by the web HMI.
     simulation: SimulationContext = SimulationContext()
+    client: ModbusTcpClient | None = None
 
-    def initialize_client(self):
+    def initialize_client(self, host: str, port: int, client_cidr: int | None = None):
         """
         Initialize the Modbus TCP client connection and start the update loop.
-        """
-        server_ip  : str = os.getenv(AlohaEnvVar.ip.value, "127.0.0.1")
-        server_port: int = int(os.getenv(AlohaEnvVar.port.value, "5020"))
 
-        self.client = ModbusTcpClient(host=server_ip, port=server_port)
+        Args:
+            host: The PLC's address.
+            port: The PLC's TCP port.
+            client_cidr: Unused; Modbus clients need no address of their own.
+        """
+        self.client = ModbusTcpClient(host=host, port=port)
         self.client.connect()
 
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.hmi_update_loop, daemon=True)
         self.thread.start()
 
+    def _write(self, register: int, value: int, coil: int | None = None) -> bool:
+        """
+        Write a holding register, and optionally the matching coil.
+
+        Returns:
+            True if the PLC accepted every write, False if it returned an error.
+        """
+        result = self.client.write_register(register, value, device_id=1)
+        logger.debug(f"Write register result: {result}")
+        if result.isError():
+            logger.error(f"PLC rejected the write to holding register {register}: {result}")
+            return False
+        if coil is not None:
+            result = self.client.write_coil(coil, bool(value), device_id=1)
+            logger.debug(f"Write coil result: {result}")
+            if result.isError():
+                logger.error(f"PLC rejected the write to coil {coil}: {result}")
+                return False
+        return True
+
     def set_estop(self, value: bool) -> bool:
         """
         Write the emergency stop command to both register and coil space.
         """
         logger.info(f"Sending command to toggle estop {"on" if value else "off"}")
-        result = self.client.write_register(plc.HR_ESTOP, value, device_id=1)
-        logger.debug(f"Write register result: {result}")
-        result = self.client.write_coil(plc.COIL_ESTOP, bool(value), device_id=1)
-        logger.debug(f"Write coil result: {result}")
+        return self._write(plc.HR_ESTOP, int(value), plc.COIL_ESTOP)
 
     def set_inflow(self, value: float) -> bool:
         """
         Write the inflow rate command to the holding register space.
         """
         logger.info(f"Sending command to set inflow to {value}")
-        result = self.client.write_register(plc.HR_IN_FLOW, int(value), device_id=1)
-        logger.debug(f"Write register result: {result}")
+        return self._write(plc.HR_IN_FLOW, int(value))
 
     def set_outflow(self, value: float) -> bool:
         """
         Write the outflow rate command to the holding register space.
         """
         logger.info(f"Sending command to set outflow to {value}")
-        result = self.client.write_register(plc.HR_OUT_FLOW, int(value), device_id=1)
-        logger.debug(f"Write register result: {result}")
+        return self._write(plc.HR_OUT_FLOW, int(value))
 
     def set_pumpSwitch(self, value: bool) -> bool:
         """
-        Write the outflow rate command to the holding register space.
+        Write the pump switch command to both register and coil space.
         """
         logger.info(f"Sending command to toggle pump {"on" if value else "off"}")
-        result = self.client.write_register(plc.HR_POWER, value, device_id=1)
-        logger.debug(f"Write register result: {result}")
-        result = self.client.write_coil(plc.COIL_POWER, bool(value), device_id=1)
-        logger.debug(f"Write coil result: {result}")
+        return self._write(plc.HR_POWER, int(value), plc.COIL_POWER)
 
     def set_manualMode(self, value: bool) -> bool:
         """
         Write the operating mode command to both register and coil space.
         """
         logger.info(f"Sending command to toggle operating mode to {"manual" if value else "auto"}")
-        result = self.client.write_register(plc.HR_MANUAL, value, device_id=1)
-        logger.debug(f"Write register result: {result}")
-        result = self.client.write_coil(plc.COIL_MANUAL, bool(value), device_id=1)
-        logger.debug(f"Write coil result: {result}")
+        return self._write(plc.HR_MANUAL, int(value), plc.COIL_MANUAL)
 
 
     def hmi_update_loop(self):

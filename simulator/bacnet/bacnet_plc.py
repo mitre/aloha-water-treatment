@@ -6,8 +6,6 @@ BACnet PLC implementation
 import asyncio
 import logging
 import signal
-import os
-import socket
 import BAC0
 
 from typing import Any
@@ -16,7 +14,7 @@ from BAC0.core.devices.local.factory import (
     analog_value, binary_value, binary_output
 )
 
-from simulator.constants import AlohaEnvVar
+from simulator.network import resolve_address
 from simulator.sim import simulation_step, SimulationContext
 from simulator.plc import PLCProtocolInterface
 
@@ -34,46 +32,28 @@ BAC_OFalarm  : str = 'overflowAlarm'
 BAC_LLalarm  : str = 'lowLevelAlarm'
 BAC_OEalarm  : str = 'operatorErrorAlarm'
 
+OBJ_LEVEL    = ('analogValue', 1)
+OBJ_INFLOW   = ('analogValue', 2)
+OBJ_OUTFLOW  = ('analogValue', 3)
+OBJ_ESTOP    = ('binaryValue', 1)
+OBJ_SWITCH   = ('binaryValue', 2)
+OBJ_MANUAL   = ('binaryValue', 3)
+OBJ_PUMP     = ('binaryOutput', 1)
+OBJ_INVALVE  = ('binaryOutput', 2)
+OBJ_OUTVALVE = ('binaryOutput', 3)
+OBJ_OFALARM  = ('binaryOutput', 4)
+OBJ_LLALARM  = ('binaryOutput', 5)
+OBJ_OEALARM  = ('binaryOutput', 6)
+
+WRITABLE = {
+    BAC_inflow   : 'InflowRate',
+    BAC_outflow  : 'OutflowRate',
+    BAC_estop    : 'EmergencyStop',
+    BAC_switch   : 'PumpSwitch',
+    BAC_manualop : 'ManualMode',
+}
+
 logger: logging.Logger = logging.getLogger(__name__)
-
-
-def resolve_bacnet_address(address: str) -> str:
-    """
-    Resolve "auto" to this host's primary IP and subnet mask.
-
-    Containers get their IP at runtime, so "auto" (or "auto/<prefix>") binds the
-    BACnet stack to the primary interface. Any other address is returned as is.
-
-    Args:
-        address: The configured BACnet address.
-
-    Returns:
-        The address as given, or "ip/prefix" for "auto".
-    """
-    if address.split("/")[0] != "auto":
-        return address
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("10.255.255.255", 1))
-        ip = s.getsockname()[0]
-        if "/" in address:
-            return f"{ip}/{address.split('/')[1]}"
-        try:
-            import fcntl
-            import struct
-            for _, name in socket.if_nameindex():
-                req = struct.pack("256s", name.encode()[:15])
-                try:
-                    if socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, req)[20:24]) == ip:
-                        mask = fcntl.ioctl(s.fileno(), 0x891B, req)[20:24]
-                        return f"{ip}/{bin(int.from_bytes(mask, 'big')).count('1')}"
-                except OSError:
-                    continue
-        except (ImportError, OSError):
-            pass
-        return f"{ip}/24"
-    finally:
-        s.close()
 
 
 class BacnetPLCInterface(PLCProtocolInterface):
@@ -87,14 +67,22 @@ class BacnetPLCInterface(PLCProtocolInterface):
     is_active: bool = True
     context: SimulationContext = SimulationContext()
 
-    # BACnet network and device configuration.
+    # BACnet device configuration.
     BACNET_DEVICE_ID: int = 1001
-    BACNET_IP: str  = resolve_bacnet_address(os.getenv(AlohaEnvVar.ip.value, "127.0.0.1/24"))
-    BACNET_PORT: int = int(os.getenv(AlohaEnvVar.port.value, 47808))
 
     # BACnet runtime objects initialized during startup.
     bacnet: BAC0.lite = None
-    bacnet_objects: dict[str: Any]
+    bacnet_objects: dict[str, Any]
+
+    def __init__(self, host: str, port: int) -> None:
+        """
+        Args:
+            host: The address to bind: "auto", "auto/<prefix>", or "IP/prefix".
+            port: The UDP port the BACnet stack listens on.
+        """
+        self.host = host
+        self.port = port
+        self.last_written: dict[str, Any] = {}
 
 
     def setup_plc(self) -> None:
@@ -106,17 +94,18 @@ class BacnetPLCInterface(PLCProtocolInterface):
         """
         pass
 
-    def run_server(self) -> None:
+    def run_server(self) -> int:
         """
         Create an event loop and run the asynchronous BACnet server.
+
+        Returns:
+            0 after a clean shutdown, 1 if the BACnet stack could not start.
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         try:
-            loop.run_until_complete(self.run_server_async())
-        except KeyboardInterrupt:
-            logging.warning("User interrupted program execution")
+            return loop.run_until_complete(self.run_server_async())
         finally:
             # Cancel any remaining tasks so the loop can shut down cleanly.
             pending = asyncio.all_tasks(loop)
@@ -138,7 +127,6 @@ class BacnetPLCInterface(PLCProtocolInterface):
             sig: The received signal number.
             frame: The current stack frame, if provided by the signal handler.
         """
-        logger.info("Shutting down BACNET PLC")
         self.is_active = False
 
     async def async_setup_plc(self) -> None:
@@ -154,21 +142,21 @@ class BacnetPLCInterface(PLCProtocolInterface):
 
         # Create the analog BACnet objects used for tank level and flow rates.
         tank_level = analog_value(name="TankLevel",
-                                    instance=1,
+                                    instance=OBJ_LEVEL[1],
                                     description="Treatment tank water level",
                                     presentValue=0,
                                     is_commandable=False
                                     )
 
         inflow_rate = analog_value(name="InflowRate",
-                                    instance=2,
+                                    instance=OBJ_INFLOW[1],
                                     description="Inlet flow rate",
                                     presentValue=0,
                                     is_commandable=True
                                     )
 
         outflow_rate = analog_value(name="OutflowRate",
-                                    instance=3,
+                                    instance=OBJ_OUTFLOW[1],
                                     description="Outlet flow rate",
                                     presentValue=0,
                                     is_commandable=True
@@ -176,21 +164,21 @@ class BacnetPLCInterface(PLCProtocolInterface):
 
         # Create the binary BACnet values used for operator commands.
         emergency_stop = binary_value(name="EmergencyStop",
-                                        instance=1,
+                                        instance=OBJ_ESTOP[1],
                                         description="Emergency stop button",
                                         presentValue=False,
                                         is_commandable=True
                                         )
 
         pump_switch = binary_value(name="PumpSwitch",
-                                    instance=2,
+                                    instance=OBJ_SWITCH[1],
                                     description="Main pump switch",
                                     presentValue=False,
                                     is_commandable=True
                                     )
 
         manual_mode = binary_value(name="ManualMode",
-                                    instance=3,
+                                    instance=OBJ_MANUAL[1],
                                     description="Auto/Manual mode (False=Auto, True=Manual)",
                                     presentValue=False,
                                     is_commandable=True
@@ -198,42 +186,42 @@ class BacnetPLCInterface(PLCProtocolInterface):
 
         # Create the binary outputs used for status and alarm indicators.
         pump_status = binary_output(name="PumpStatus",
-                                    instance=1,
+                                    instance=OBJ_PUMP[1],
                                     description="Pump operational state",
                                     presentValue=False,
                                     is_commandable=False
                                     )
 
         inflow_valve = binary_output(name="InflowValve",
-                                        instance=2,
+                                        instance=OBJ_INVALVE[1],
                                         description="Inlet valve state",
                                         presentValue=False,
                                         is_commandable=False
                                         )
 
         outflow_valve = binary_output(name="OutflowValve",
-                                        instance=3,
+                                        instance=OBJ_OUTVALVE[1],
                                         description="Outlet valve state",
                                         presentValue=False,
                                         is_commandable=False
                                         )
 
         overflow_alarm = binary_output(name="OverflowAlarm",
-                                        instance=4,
+                                        instance=OBJ_OFALARM[1],
                                         description="High level alarm",
                                         presentValue=False,
                                         is_commandable=False
                                         )
 
         low_level_alarm = binary_output(name="LowLevelAlarm",
-                                        instance=5,
+                                        instance=OBJ_LLALARM[1],
                                         description="Low level alarm",
                                         presentValue=False,
                                         is_commandable=False
                                         )
 
         operator_error_alarm = binary_output(name="OperatorErrorAlarm",
-                                                instance=6,
+                                                instance=OBJ_OEALARM[1],
                                                 description="Operator error / safety violation",
                                                 presentValue=False,
                                                 is_commandable=False
@@ -283,29 +271,40 @@ class BacnetPLCInterface(PLCProtocolInterface):
 
 
 
-    async def run_server_async(self) -> None:
+    async def run_server_async(self) -> int:
         """
         Start the BACnet server and execute the asynchronous simulation loop.
+
+        Returns:
+            0 after a clean shutdown, 1 if the BACnet stack could not start.
         """
         # Register signal handlers so the loop can stop cleanly.
         signal.signal(signal.SIGINT,  self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
 
         # Reduce BAC0 logging noise during normal operation.
-        BAC0.log_level('silence')
+        if not logging.getLogger().isEnabledFor(logging.DEBUG):
+            BAC0.log_level('silence')
+            logging.getLogger('bacpypes3').setLevel(logging.CRITICAL)
+        logging.getLogger("BAC0_Root").propagate = False
 
+        address = resolve_address(self.host)
         try:
             # Start the BACnet stack and bind to the configured device identity.
             self.bacnet = BAC0.start(
-                ip      =self.BACNET_IP,
+                ip      =address,
+                port    =self.port,
                 deviceId=self.BACNET_DEVICE_ID
             )
 
             await self.async_setup_plc()
+        except Exception as e:
+            logger.error(f"Could not start BACnet device {self.BACNET_DEVICE_ID} on {address} port {self.port}: {e}")
+            return 1
 
-            logger.info(f"PLC running on BACnet device {self.BACNET_DEVICE_ID} at {self.BACNET_IP}")
-            logger.info("Water Treatment Plant Control System Ready")
+        logger.info(f"BACnet device {self.BACNET_DEVICE_ID} listening on {address.split('/')[0]}:{self.port}")
 
+        try:
             while self.is_active:
                 try:
                     # Synchronize BACnet inputs into the simulation, execute
@@ -313,28 +312,26 @@ class BacnetPLCInterface(PLCProtocolInterface):
                     self.update_simulation_from_plc()
                     simulation_step(self.context)
                     self.update_plc_from_simulation()
-                    await asyncio.sleep(1)
-
                 except Exception as e:
-                    logging.error(f"Error in control loop: {e}")
-                    await asyncio.sleep(1)
-
-            logger.info("Stopping BACnet server...")
-            self.bacnet.disconnect()
-        except asyncio.CancelledError:
-            logger.warning("BACnet PLC shutting down")
-        except Exception as e:
-            logger.error(f"System error: {e}")
-            if 'bacnet' in locals():
-                try:
-                    self.bacnet.disconnect()
-                except:
-                    pass
+                    logger.error(f"Error in control loop: {e}")
+                await asyncio.sleep(1)
+        finally:
+            try:
+                await self.bacnet._disconnect()
+            except Exception:
+                pass
+        logger.info("Stopped")
+        return 0
 
     def update_simulation_from_plc(self) -> None:
         """
         Copy BACnet object values into the shared simulation context.
         """
+        for key, name in WRITABLE.items():
+            value = self.bacnet_objects[key].presentValue
+            if key in self.last_written and value != self.last_written[key]:
+                logger.info(f"Client wrote {name} = {value}")
+
         # Read operator-controlled and externally visible values from the
         # BACnet objects into the protocol-neutral simulation context.
         self.context.estop     = self.bacnet_objects[BAC_estop].presentValue
@@ -373,10 +370,12 @@ class BacnetPLCInterface(PLCProtocolInterface):
         self.bacnet_objects[BAC_inflow].presentValue =  int(self.context.in_flow)
         self.bacnet_objects[BAC_outflow].presentValue = int(self.context.out_flow)
 
+        self.last_written = {key: self.bacnet_objects[key].presentValue for key in WRITABLE}
 
 
-def create_plc() -> PLCProtocolInterface:
+
+def create_plc(host: str, port: int) -> PLCProtocolInterface:
     """
     Create and return the BACnet PLC implementation.
     """
-    return BacnetPLCInterface()
+    return BacnetPLCInterface(host, port)
